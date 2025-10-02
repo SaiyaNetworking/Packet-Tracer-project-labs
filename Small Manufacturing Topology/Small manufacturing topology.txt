@@ -1,0 +1,839 @@
+This network topology is simply a proof-of-concept or a "what would I do to make this current situation even better for everyone" that I 
+happened to cobble together. Most of this is based off of what I have learned from the Cisco Certified Network Associate (CCNA) and 
+general best practices that people would commonly agree on. There will be quite a few different things that would be missing from a 
+traditional network such as EtherChannels, load-balancing, fail=overs, controller-based networking, dynamic routing and more granular firewall policies. 
+I omitted these because I went with a "simplicity with elegance" philosophy because of three reasons:
+
+1) Correctly-implemented networks are virtually bulletproof and should be considered as such.
+2) I feel like this would be a good blueprint for any small business that can't hire/contract a dedicated network engineer could find a 
+good use off of this template.
+3) There are far more qualified network engineers than me that would see flaws in my implementation and their diagrams should be followed if
+your business does have such network engineers.
+
+This specific small-business example is based off of my past few jobs of having the privilege to see the different networks of the 
+businesses in question and having the opportunity to say "I can make this even better and more efficient." Some aspects I have been 
+able to implement. Others I have not due to constraints. Either way, I'm grateful for the opportunity to be able to work with said 
+networks in the first place where I had no prior network experience in a business environment.
+
+Why Packet Tracer?
+It's one of the easier templates to share. Something hosted on GNS3 or Cisco Modeling Labs (CML) would be more authentic, but Packet 
+Tracer is a lot more straightforward.
+
+
+~~note~~
+This is simply a template because I haven't been able to find a similar template like this myself. I have seen quite a few rudimentary ones 
+such as a 1990's star topology or Wide Area Network (WAN) networks but nothing like a small business that isn't an office. I do hope this 
+will be a helpful to anyone aspiring to be a network engineer or even just clean up an antiquated network infrastructure. This specific 
+template was designed for around 20-25 end users and a rotation of 12-16 IoT devices being manufacture. Scalability has been considered up to 
+double the workforce or roughly what the facility could manage before expansion of the facility itself would have to be considered.
+
+
+
+
+~~~~~~~~~~~~~~~~~~~~~
+Small business network topology
+10.0.0.0 network
+
+
+
+```````````````````````````````
+INITIAL SETUP AND CONNECTIVITY
+
+local account or controller of your choice. This is an example in Packet Tracer:
+
+
+LOGIN/VTY
+
+~~Local Account~~
+username admin privilege 15 secret password
+ip domain-name cisco.com
+crypto key generate rsa
+2048 keys
+ip ssh version 2
+
+~~Remote Terminal Login~~
+line vty 0 4
+login local
+transport input ssh
+
+
+``````````````````````````````
+VLANS
+
+This is set up for 9 vlans with a marginal amount of hosts for the assumed capacity of the environment and to act as a 
+proof-of-concept of managing IPv4 addresses. The maximum hosts per the CIDR notations below are:
+/24 = 254 hosts
+/25 = 126 hosts
+/26 = 62 hosts
+/27 = 30 hosts
+/28 = 14 hosts
+/29 = 6 hosts
+/30 = 4 hosts
+
+In a real-world deployment that doesn't rely on public IPv4's for a small business, you would primarily stick to just using 
+a /24 subnet for easy readability, scalability and to reduce the potential of an accidental misconfiguration. Being able to 
+read (as will be seen):
+10.0.1.0 - mgmt
+10.0.2.0 - sales
+10.0.3.0 - engineering
+10.0.4.0 - machine shop
+10.0.5.0 - shipping & receiving (and et cetera)
+
+is a lot easier to comprehend visually than:
+10.0.0.0 - mgmt
+10.0.0.16 - sales
+10.0.0.32 - engineering
+10.0.0.96 - machine shop
+10.0.0.104 - shipping & receiving
+10.0.0.112 - assembly + tech
+10.0.0.176 - VOIP
+10.0.0.208 - server
+10.0.0.212 - everything else and onward.
+
+
+For VLANs that require management or point-to-point connectivity though, /24-28 should be used for management to restrict unauthorized 
+access and point-to-point connectivity should be done on /30 subnets. Some vendors like Cisco and more modern hardware supports /31 subnets, but others like Microsoft Azure will reject /31 subnets.
+
+
+~~Vlan profile~~
+
+1) Mgmt (4 users + phones) /28	10.0.1.0 VLAN 10
+2) Sales (4 users + testing devices + phones) /28 10.0.2.0 VLAN 20
+3) Engineering (8 users + testing devices + phones) /26 10.0.3.0 VLAN 30
+4) Machine shop (4 users + devices + phones) /29 10.0.4.0 VLAN 40
+5) Shipping + Receiving (4 users + phones) /29 10.0.5.0 VLAN 50
+6) Assembly + tech (64 users/devices + 1 phone) /26 OR /25 10.0.6.0 VLAN 60
+7) VOIP (30 phones) /27 10.0.7.0 VLAN 70
+8) Server /30 10.0.8.0 VLAN 80
+9) Guest WiFi /24 10.0.9.0 VLAN 90
+
+
+-Engineering has to be able to reach tech via interVLAN routing, so no ACL blocking pinging from VLAN 30 to VLAN 60
+-Everyone has to reach Server 1 for inventory updates.
+-Native VLAN 10 (just for the wireless in Packet Tracer. Normally there would be an OOB management port and a native vlan, 
+but Packet Tracer won't allow it for the WLC. Or I'm just misconfiguring within the confines of Packet Tracer. Either way, OOB and native in a real deployment)
+
+Max Scale that can reasonably be supported before a new facility would need to be rented or purchased:
+50 end users
+20 VOIP phones
+20-30 IoT devices being tested
+
+
+~~Vlans~~
+
+Management and HR are rolled into one VLAN due to small business environment (i.e. many hats for one to four people.)
+
+MLS:
+vlan 10
+name MGMT
+vlan 20
+name SALES
+vlan 30
+name ENG
+vlan 40
+name SHOP
+vlan 50
+name S&R
+vlan 60
+name MANU_TECH
+vlan 70
+name PHONE
+vlan 80
+name SERVER
+vlan 90
+name WIFI
+
+ASW1:
+vlan 10
+name MGMT
+vlan 20
+name SALES
+vlan 30
+name ENG
+vlan 70
+name PHONE
+vlan 80
+name SERVER
+vlan 90
+name WIFI
+
+ASW2:
+vlan 10
+name MGMT
+vlan 40
+name SHOP
+vlan 50
+name S&R
+vlan 70
+name PHONE
+vlan 80
+name SERVER
+vlan 90
+name WIFI
+
+ASW3:
+vlan 10
+name MGMT
+vlan 60
+name MANU_TECH
+vlan 70
+name PHONE
+vlan 80
+name SERVER
+vlan 90
+name WIFI
+
+~~IP addresses~~
+
+This is to assign the initial IP addresses for the specific interfaces. We will use inter-vlan routing. 203.0.113.1 is the "public"
+IP address and the loopback addresses are to keep an accessible logical interface in case a port fails. The layer 2 switches will
+have IP interfaces on vlan 10 to allow remote accessibility from the management vlan.
+
+Gateway:
+int g0/1
+ip address 203.0.113.1 255.255.255.0
+no shutdown
+int loopback 1
+ip address 192.168.2.1 255.255.255.255
+
+MLS:
+ip routing
+int vlan 10
+ip address 10.0.1.1
+int vlan 20
+ip address 10.0.2.1
+int vlan 30
+ip address 10.0.3.1
+int vlan 40
+ip address 10.0.4.1
+int vlan 50
+ip address 10.0.5.1
+int vlan 60
+ip address 10.0.6.1
+int vlan 70
+ip address 10.0.7.1
+int vlan 80
+ip address 10.0.8.1
+int vlan 90
+ip address 10.0.9.1
+int loopback 1
+ip address 192.168.3.1
+
+ASW1:
+int vlan 10
+ip address 10.0.1.12
+
+ASW2:
+int vlan 10
+ip address 10.0.1.13
+
+ASW3:
+int vlan 10
+ip address 10.0.1.14
+
+~~Switchport Access~~
+
+The switchports are to assign certain vlans to certain interfaces to isolate users within the network.
+
+MLS:
+int g0/2
+switchport mode access
+switchport access vlan 10
+int f0/4
+switchport mode access
+switchport allowed vlan 80
+
+ASW1:
+int f0/2
+switchport mode access
+switchport access vlan 10
+int f0/3
+switchport mode access
+switchport access vlan 70
+int f0/4
+switchport mode access
+switchport access vlan 20
+int f0/5
+switchport mode access
+switchport access vlan 70
+int f0/6
+switchport mode access
+switchport access vlan 30
+int f0/7
+switchport mode access
+switchport access vlan 70
+int f0/8
+switchport mode access
+switchport access vlan 30
+int f0/9
+switchport mode access
+switchport access vlan 10
+int f0/10
+switchport mode access
+switchport access vlan 10
+
+
+ASW2:
+int f0/2
+switchport mode access
+switchport access vlan 40
+int f0/3
+switchport mode access
+switchport access vlan 70
+int f0/4
+switchport mode access
+switchport access vlan 50
+int f0/5
+switchport mode access
+switchport access vlan 70
+
+ASW3:
+int f0/2
+switchport mode access
+switchport access vlan 60
+int f0/3
+switchport mode access
+switchport access vlan 60
+int f0/4
+switchport mode access
+switchport access vlan 70
+int f0/5
+switchport mode access
+switchport access vlan 70
+
+~~Switchport trunk~~
+
+Your trunk ports are to allow the *allowed* vlans to transmit out to the central aggregator and to restrict access to other vlans 
+from different areas or unauthorized areas of the building. This is to prevent people from doing reconnaissance and drive-by network-mapping (Nmap for example) of your network infrastructure while maintaining proper work flow.
+
+MLS:
+int g0/2
+switchport trunk encap dot1q
+switchport mode trunk
+switchport trunk native vlan 10
+switchport trunk allowed vlan 10,90
+int f0/1
+switchport trunk encap dot1q
+switchport mode trunk
+switchport trunk native vlan 199
+switchport trunk allowed vlan 10,20,30,70,80
+int f0/2
+switchport trunk encap dot1q
+switchport mode trunk
+switchport trunk native vlan 199
+switchport trunk allowed vlan 10,40,50,70,80
+int f0/3
+switchport trunk encap dot1q
+switchport mode trunk
+switchport trunk native vlan 199
+switchport trunk allowed vlan 10,60,70,80
+
+ASW1:
+int f0/1
+switchport mode trunk
+switchport trunk native vlan 199
+switchport trunk allowed vlan 10,20,30,70,80
+
+ASW2:
+int f0/1
+switchport mode trunk
+switchport trunk native vlan 199
+switchport trunk allowed vlan 10,40,50,70,80
+
+ASW3:
+int f0/1
+switchport mode trunk
+switchport trunk native vlan 199
+switchport trunk allowed vlan 10,60,70,80
+
+
+
+````````````````````````````````````
+DHCP SERVICES
+
+For simplicity's sake for any system administrator and the Packet Tracer lab, DHCP will be on the gateway. On a larger 
+scale or a system administrator could always implement DHCP on a local server. The excluded address pools can be larger 
+to include printer services but is generally assumed there is only a couple to a few communal printers and a dedicated 
+large-format printer. A controller of choice will make this a lot easier to deploy than the Cisco CLI but this will serve 
+as good, easy-to-follow framework.
+
+IP x.x.x.0 in these networks are always the network address and are reserved to identify the network through the routing protocol. 
+IP x.x.x.255 is the broadcast address and is always reserved for the broadcasting protocol. 
+IP x.x.x.1 is reserved for the gateway addresses for the vlans
+Any other IP address can be excluded if you need to set up a static IP address for a server, printer, network hardware, etc.
+
+~~Router DHCP~~
+excluded address 10.0.1.1
+excluded address 10.0.1.10 10.0.1.14
+excluded address 10.0.2.1
+excluded address 10.0.3.1
+excluded address 10.0.4.1
+excluded address 10.0.5.1
+excluded address 10.0.6.1
+excluded address 10.0.7.1
+excluded address 10.0.8.1 10.0.8.2
+excluded address 10.0.9.1
+
+ip dhcp pool Management
+network 10.0.1.0 255.255.255.240
+default-router 192.168.1.1
+dns-server 10.0.8.2
+domain-name cisco.com
+
+ip dhcp pool Sales
+network 10.0.2.0 255.255.255.240
+default-router 192.168.1.1
+dns-server 10.0.8.2
+domain-name cisco.com
+
+ip dhcp pool Engineering
+network 10.0.3.0 255.255.255.192
+default-router 192.168.1.1
+dns-server 10.0.8.2
+domain-name cisco.com
+
+ip dhcp pool Machine_Shop
+network 10.0.4.0 255.255.255.240
+default-router 192.168.1.1
+dns-server 10.0.8.2
+domain-name cisco.com
+
+ip dhcp pool Shipping&Receiving
+network 10.0.5.0 255.255.255.248
+default-router 192.168.1.1
+dns-server 10.0.8.2
+domain-name cisco.com
+
+ip dhcp pool Manu_Tech
+network 10.0.6.0 255.255.255.128
+default-router 192.168.1.1
+dns-server 10.0.8.2
+domain-name cisco.com
+
+ip dhcp pool Phone
+network 10.0.7.0 255.255.255.224
+default-router 192.168.1.1
+dns-server 10.0.8.2
+domain-name cisco.com
+
+ip dhcp pool Server
+network 10.0.8.0 255.255.255.224
+default-router 192.168.1.1
+dns-server 10.0.8.2
+domain-name cisco.com
+
+ip dhcp pool WiFi
+network 10.0.9.0 255.255.255.0
+default-router 192.168.1.1
+dns-server 10.0.8.2
+domain-name cisco.com
+
+~~IP Helper-address (Packet Tracer)~~
+
+This is just to help the MLS point to the router for DHCP requests.
+
+MLS:
+int vlan 10
+ip helper-address 192.168.1.1
+int vlan 20
+ip helper-address 192.168.1.1
+int vlan 30
+ip helper-address 192.168.1.1
+int vlan 40
+ip helper-address 192.168.1.1
+int vlan 50
+ip helper-address 192.168.1.1
+int vlan 60
+ip helper-address 192.168.1.1
+int vlan 70
+ip helper-address 192.168.1.1
+int vlan 80
+ip helper-address 192.168.1.1
+int vlan 90
+ip helper-address 192.168.1.1
+
+
+~~Static routing for DHCP requests~~
+
+This is just a static route to help the MLS and Gateway communicate.
+
+Gateway:
+int g0/0
+ip address 192.168.1.1
+no shutdown
+
+MLS:
+int g0/1
+no switchport
+ip address 192.168.1.2
+
+~~Static routing for Loopback interfaces~~
+
+This is to set up static routes to the logical interfaces
+
+Gateway:
+int loopback 1
+ip route 192.168.3.1 255.255.255.255 g0/1
+
+MLS:
+int loopback 1
+ip route 192.168.2.1 255.255.255.255 g0/0
+
+~~Static routing for VLAN interfaces~~
+
+This is to set up static routes to the VLAN interfaces for the gateway to see.
+
+Gateway:
+ip route 10.0.1.0 255.255.255.240 GigabitEthernet0/0
+ip route 10.0.2.0 255.255.255.240 GigabitEthernet0/0
+ip route 10.0.3.0 255.255.255.192 GigabitEthernet0/0
+ip route 10.0.4.0 255.255.255.240 GigabitEthernet0/0
+ip route 10.0.5.0 255.255.255.248 GigabitEthernet0/0
+ip route 10.0.6.0 255.255.255.128 GigabitEthernet0/0
+ip route 10.0.7.0 255.255.255.224 GigabitEthernet0/0
+ip route 10.0.9.0 255.255.255.0 GigabitEthernet0/0
+
+
+``````````````````````````````````````````````````
+DNS SERVICES
+Under normal circumstances, the gateway can send out 8.8.8.8 DNS queries or an internal server can be used. 
+This is just a fill-in for Packet Tracer and the WLC.
+
+~~Dns Server config~~
+Static IP 10.0.8.2
+Netmask 255.255.255.252
+Gateway 10.0.8.1
+DNS server 10.0.8.2
+
+
+``````````````````````````````````````````````````
+LLDP
+This is to enable the Link-Layer Discovery Protocol (LLDP) on Cisco devices and to disable Cisco Discovery Protocol (CDP) 
+to prevent Yersernia-type attacks and use LLDP on the backbone of the network or the portion that isn't accessible 
+to end-users. This won't really matter if you don't use Cisco.
+
+MLS:
+no cdp run
+lldp run
+int range f0/1-3
+lldp receive
+lldp transmit
+int g0/1
+lldp receive
+lldp transmit
+exit
+
+ASW1-3:
+no cdp run
+lldp run
+int f0/1
+lldp receive
+lldp transmit
+exit
+
+Gateway:
+no cdp run
+lldp run
+int g0/0
+lldp receive
+lldp transmit
+exit
+
+
+````````````````````````````````````````
+PORT SECURITY AND DHCP SNOOPING
+DHCP snooping is to prevent rogue DHCP clients and routers setting up access in your network. Be mindful some companies 
+might require a double-NAT for old equipment (90's - 2000's era) that is hardcoded for broadcasts in the class C or 
+class B domains. DHCP snooping **should not be enabled** if you need to set up extra NAT translations for segmented equipment.
+
+~~DHCP Snooping~~
+MLS:
+ip dhcp snooping
+ip dhcp snooping vlan 10,20,30,40,50,60,70,80,90
+no ip dhcp snooping information option
+int g0/1
+ip dhcp snooping trust
+
+
+~~Port Security~~
+Port Security is a protocol that monitors for PC's or equipment that should not be plugged into that specific ethernet 
+port leading to the switch. For this lab set up, we will use the two different port-security violation options:
+
+- Violation shutdown: shuts the port down and will not turn on again until management reenables it. Will log a violation.
+- Violation protect: remains enabled but will stop unauthorized hardware from transmitting on the port. Won't log a violation.
+
+ Interfaces with the violation shutdown should never have their desktop PC's changed for anything else and should be treated as an 
+emergency/alert. Interfaces with the violation protect are assumed to be accidentally or unintentionally changed or swapped (such 
+as sales wanting to test an IoT device within their vlan.) This is to prevent potential losses in sales and downtime. Testing 
+should be within the designated Engineering or Manu_Tech VLANs even if there has to be a designated interface introduced.
+
+Two other options will be enabled which are the maximum allowed MAC-addresses saved on a port and dynamic MAC-address learning. This
+will prevent swapping out designated desktop PC's for laptops, rogue Pi's, or other hardware.
+
+Company IoT's will specifically have a designated Named Access Control List (NACL) to control inbound and outbound traffic to the 
+rented server, local VLAN, and SSH. Any other ports should be blocked unless reason is needed to whitelist certain ports for needed 
+API traffic. Any other IoT like smart devices (coffee machines, fridges, personal printers) should either be shunted into its own 
+VLAN or even its own dedicated ISP line.
+
+*Note* It's very important to mitigate and control open ports to prevent backdoors into the network from rouge AP's using cellular 
+or drive-by network scanning attacks. Have everything clearly documented and labeled to maintain a sanitized environment.
+
+ASW1:
+int range f0/2-3
+switchport port-security
+switchport port-security maximum 1
+switchport port-security mac-address sticky
+switchport port-security violation shutdown
+int range f0/4-7
+switchport port-security
+switchport port-security maximum 1
+switchport port-security mac-address sticky
+switchport port-security violation protect
+
+ASW2:
+int range f0/2-4
+switchport port-security
+switchport port-security maximum 1
+switchport port-security mac-address sticky
+switchport port-security violation shutdown
+
+ASW3:
+int range f0/2-4
+switchport port-security
+switchport port-security maximum 1
+switchport port-security mac-address sticky
+switchport port-security violation shutdown
+
+
+```````````````````````````````````````````
+Named Access Control Lists (NACL's)
+Like any other good firewall, you want to control and only whitelist what's absolutely necessary to prevent exfiltration or 
+any rogue servers from communicating outward. VLAN segmentation should be as controlled as possible without random successful 
+ping to other end-user devices.
+
+~~~MLS ACL's~~~
+-None of the VLANs should be able to ping the Mgmt VLAN
+-Mgmt VLAN should be able to ping everyone else
+-VLANS should be isolated from pinging eachother EXCEPT Eng VLAN 30 to Manu_Tech VLAN 60
+-Manu-Tech VLAN should not be able to ping Eng VLAN 30
+-Everyone should be able to ping server 10.0.8.2
+-Everyone should be able to ping Gateway 192.168.1.1
+
+
+MLS:
+~~Sales VLAN 20~~
+
+ip access-list extended SALES_SEC
+deny icmp 10.0.2.0 0.0.0.15 10.0.1.0 0.0.0.15 echo
+deny icmp 10.0.2.0 0.0.0.15 10.0.3.0 0.0.0.63 echo
+deny icmp 10.0.2.0 0.0.0.15 10.0.4.0 0.0.0.15 echo
+deny icmp 10.0.2.0 0.0.0.15 10.0.5.0 0.0.0.7 echo
+deny icmp 10.0.2.0 0.0.0.15 10.0.6.0 0.0.0.127 echo
+deny icmp 10.0.2.0 0.0.0.15 10.0.9.0 0.0.0.254 echo
+permit udp any any eq bootps
+permit udp any any eq bootpc
+permit tcp any any eq 80
+permit tcp any any eq 443
+permit ip any any
+
+int vlan 20
+ip access-group SALES_SEC in
+
+~~Eng VLAN 30~~
+
+ip access-list extended ENG_SEC
+deny icmp 10.0.3.0 0.0.0.63 10.0.1.0 0.0.0.15 echo
+deny icmp 10.0.3.0 0.0.0.63 10.0.2.0 0.0.0.15 echo
+deny icmp 10.0.3.0 0.0.0.63 10.0.4.0 0.0.0.15 echo
+deny icmp 10.0.3.0 0.0.0.63 10.0.5.0 0.0.0.7 echo
+deny icmp 10.0.3.0 0.0.0.63 10.0.9.0 0.0.0.254 echo
+permit udp any any eq bootps
+permit udp any any eq bootpc
+permit tcp any any eq 80
+permit tcp any any eq 443
+permit ip any any
+
+int vlan 30
+ip access-group ENG_SEC in
+
+~~Machine Shop VLAN 40~~
+
+ip access-list extended SHOP_SEC
+deny icmp 10.0.4.0 0.0.0.15 10.0.1.0 0.0.0.15 echo
+deny icmp 10.0.4.0 0.0.0.15 10.0.2.0 0.0.0.15 echo
+deny icmp 10.0.4.0 0.0.0.15 10.0.3.0 0.0.0.64 echo
+deny icmp 10.0.4.0 0.0.0.15 10.0.5.0 0.0.0.7 echo
+deny icmp 10.0.4.0 0.0.0.15 10.0.6.0 0.0.0.127 echo
+deny icmp 10.0.4.0 0.0.0.15 10.0.9.0 0.0.0.254 echo
+permit udp any any eq bootps
+permit udp any any eq bootpc
+permit tcp any any eq 80
+permit tcp any any eq 443
+permit ip any any
+
+int vlan 40
+ip access-group SHOP_SEC in
+
+~~Shipping & Receiving VLAN 50~~
+
+ip access-list extended S&R_SEC
+deny icmp 10.0.5.0 0.0.0.7 10.0.1.0 0.0.0.15 echo
+deny icmp 10.0.5.0 0.0.0.7 10.0.2.0 0.0.0.15 echo
+deny icmp 10.0.5.0 0.0.0.7 10.0.3.0 0.0.0.64 echo
+deny icmp 10.0.5.0 0.0.0.7 10.0.4.0 0.0.0.15 echo
+deny icmp 10.0.5.0 0.0.0.7 10.0.6.0 0.0.0.127 echo
+deny icmp 10.0.5.0 0.0.0.7 10.0.9.0 0.0.0.254 echo
+permit udp any any eq bootps
+permit udp any any eq bootpc
+permit tcp any any eq 80
+permit tcp any any eq 443
+permit ip any any
+
+int vlan 50
+ip access-group S&R_SEC in
+
+~~Manufacturing & Tech VLAN 60~~
+
+ip access-list extended MANU_TECH_SEC
+deny icmp 10.0.6.0 0.0.0.127 10.0.1.0 0.0.0.15 echo
+deny icmp 10.0.6.0 0.0.0.127 10.0.2.0 0.0.0.15 echo
+deny icmp 10.0.6.0 0.0.0.127 10.0.3.0 0.0.0.63 echo
+deny icmp 10.0.6.0 0.0.0.127 10.0.4.0 0.0.0.15 echo
+deny icmp 10.0.6.0 0.0.0.127 10.0.5.0 0.0.0.7 echo
+deny icmp 10.0.6.0 0.0.0.127 10.0.9.0 0.0.0.254 echo
+permit udp any any eq bootps
+permit udp any any eq bootpc
+permit tcp any any eq 80
+permit tcp any any eq 443
+permit ip any any
+
+int vlan 60
+ip access-group MANU_TECH_SEC in
+
+
+~~Gateway ACL~~
+-Just block pings to internal network ranges and completely block telnet. SSH should still work from the ISP router
+
+Gateway:
+
+ip access-list extended BLOCK_EXTERNAL_PINGS
+deny icmp any 192.168.0.0 0.0.255.255
+deny icmp any 192.168.0.0 0.0.0.255
+deny icmp any 10.0.0.0 0.0.255.255
+deny icmp any 10.0.0.0 0.0.0.255
+deny tcp any any eq telnet
+permit ip any any
+
+int g0/1
+ip access-group BLOCK_EXTERNAL_PINGS
+
+
+``````````````````````````````````````
+WIRELESS LAN CONTROLLER
+Cisco Packet Tracer is very....buggy and limited with the web GUI for the WLC. Supposedly Packet Tracer doesn't support 
+wireless DHCP leasing and a lot of the available options are limited. I left the only two accessible WLANS as "test" for 
+the initial setup and "guest" for basic connectivity. In the real world you can add both a guest and employee SSID. This 
+is only a placeholder because Packet Tracer is a real pain to deal with.
+
+Another issue seems to be the LWAP won't connect to the WLC unless it's through untagged traffic (so native vlan would be 
+the mgmt vlan, too.) Since the DHCP leasing seems to bug out when the program reloads, the LWAPS won't reach the WLC unless 
+statically configured. This is only theory currently because Packet Tracer isn't Cisco Modeling Labs or GNS3 so I can't 
+definitely say I didn't do a bad configuration and broke something somewhere. What I can confirm is the initial DHCP setup did 
+work at the time prior to reloading the Packet Tracer program. I might tack on a secondary Packet Tracer lab as a proof-of-concept.
+
+~~WLC setup~~
+
+``webGUI``
+user: admin
+password: Password1
+
+
+Management:
+IP Address 10.0.1.11
+Netmask 255.255.255.240
+Gateway 10.0.1.1
+DNS Server 10.0.8.2
+
+Controller -> Interfaces:
+Name: guest_interface
+Port: 1
+Vlan ID: 90
+IP Address: 10.0.9.2
+Netmask: 255.255.255.0
+Gateway: 10.0.9.1
+Primary DHCP Server: 192.168.1.1
+
+WLAN:
+Profile name: guest
+SSID: guest_wifi
+Status: Enable
+Interface: guest_interface
+-> Security Tab
+Layer 2 Security: WPA + WPA2
+WPA2 Policy: Checkmarked
+WPA2 Encryption: AES checkmarked
+PSK: Enable
+Password: password
+
+
+
+
+
+BUDGET:
+
+With a small deployment like this where you could even collapse the L3 switch into the router using a gateway,
+a limited budget is of little concern if your main purchase option are MicroTik, Ubiquiti or TP-Link. The only basic
+cons are that:
+- MicroTik has a learning curve to it due to the RouterOS setup.
+- Ubiquiti demands you have cold spares if you want to maintain Recovery Time Objectives.
+- TP-Link has dubious connections with the CCP, a very infamous entity that has "estimated to cost the taxpayer 
+$600 billion per year" from a 2023 letter sent from Chairman Gallagher to Attorney General Garland. The 2024 
+European hacking campaign has brought considerable scrutiny on TP-Link.
+
+While not recommended for a business that requires availability or redundancy or a serious enterprise environment, I'll 
+use Ubiquiti as our ballpark example due to familiarity, including cold spares:
+
+- Dream Machine Pro (gateway) @ 379.00 x 2 = 758
+- Standard 24 PoE (layer 2 switch) @ 379.00 x4 = 1,516.00
+- Pro 24 PoE (layer 3 switch) @ 699.00 x 2 = 1398.00
+- U6+ LWAP @ 129.00 x 4 = 516.00
+
+Grand sum = $4,188.00
+
+A very modest budget to pull out a lopsided/unmanaged network infrastructure and update it to being relatively secure with a
+reasonable disaster recovery in place. If even a modest budget is out of the reach of a small business or a nonprofit entity, the cold 
+spares can be subtracted and the layer 3 switch collapsed into the gateway:
+
+- Dream Machine Pro (gateway) @ 379.00 x 1 = 379.00
+- Standard 24 PoE (layer 2 switch) @ 379.00 x2 = 758.00
+- U6+ LWAP @ 129.00 x 3 = 387.00
+
+Grand sum = $1,524.00
+
+Much cheaper, but it should be noted that any hardware failure will *AT LEAST* put your business out of any IP services for a week until 
+a new hardware item comes in, and if bought from Amazon, there's no guarantee the shipped item will even be authentic or new.
+
+
+And if one wanted to shrink this down for a small office:
+
+- Unifi Express 7 (gateway w/ wifi) @ 199.00 x 1 = 199.00
+- Ultra 60W (layer 2 switch) @ 159.00 x 1 = 159.00
+- U6+ LWAP @ 129.00 x 1 = 129.00
+
+Grand sum = $487.00
+
+Just a basic small office environment. The most important part will be the switch for setting up an AP or two across the office floor.
+
+
+RECOMMENDED UPGRADES:
+
+A collapsed core, 2-tier model with two routers facing separate ISP's. This is to facilitate high availability and redundancy for 
+a small business that would require near-constant access to the internet to either function or maintain revenue. Major hardware should 
+be considered as well with a quick RMA or replacement. Cisco would be a good example and the increased pricing should be accepted as 
+opposed to the potential loss of revenue. Load balancing, failovers, and other configurations should be accounted for as well.
+
+
+
+
+
+
