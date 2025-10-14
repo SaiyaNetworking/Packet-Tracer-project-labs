@@ -1,0 +1,77 @@
+1.6 Configure and verify IPv4 addressing and subnetting
+
+Subnetting is the heart and soul of networking. From setting up restricted subnets for management purposes, subnets for hardcoded software that won't work with modern CIDR networking, to reserving public IPv4 spacing, it is absolutely imperative you understand the fundamentals of subnetting. This is so you can  properly troubleshoot misconfigured networks to conserving IPv4 space when needed. Understanding subnetting will also allow you to be able to understand how packets are routed via prefix: a very important aspect of passing the CCNA.
+
+
+~~Router 1 and 2~~
+Step 1:
+
+The given IP address is 192.168.0.0/30. Your netmask for a /30 CIDR notation is 255.255.255.252 or 4 total host bits. Two bits arereserved for the network address which is always the first bit and the broadcast address which is always the last bit. This means within a 192.168.0.0/30 network, 192.168.0.0-3 is your entire subnet (don't forget 0 is also counted!) 0 will be your network bit and 3 will be your broadcast bit so your only available host bits in subnet 1 is 1-2.
+
+Step 2:
+
+	R1(config)#int g0/0						//access interface
+	R1(config-if)#ip address 192.168.0.1 255.255.255.252		//apply the first IPv4 address to the interface
+	R1(config-if)#no shutdown					//turn the interface on
+
+	R2(config)#int g0/0						//access interface
+	R2(config-if)#ip address 192.168.0.2 255.255.255.252		//apply the last IPv4 address to the interface
+	R2(config-if)#no shutdown					//turn the interface on
+
+Step 3:
+
+	R1#show ip interface brief					//verify the ip address is correct and the interface is online
+	R1#ping 192.168.0.2						//ping R2's interface
+
+	R2#show ip interface brief					//verify the IP address is correct and the interface is online
+	R2#ping 192.168.0.1						//ping R1's interface
+
+
+*Hint: If you still cannot ping the connected router, be sure to verify your connectivity using the command "show ip interface brief" to double-check that you entered the IP address correctly. Cisco's CLI will tell you if you try to enter a bad subnet mask and reject your command.
+
+
+~~Routers 3 and 4~~
+Step 1:
+
+You already know the first subnet is 192.168.0.0-3 but now you need to find the *fourth* subnet with the given IP range of 192.168.0.0/30. There are quite a few different ways to find your network address, but one of the easiest ways is to count up incrementally from how large your subnet is:
+	Subnet 1: 192.168.0.0		<--- We are starting at 0 for the first subnet
+	Subnet 2: 192.168.0.4		<--- Add 4 to the first subnet (0, 1, 2, 3) and the next number is your new subnet (which is 4)
+	Subnet 3: 192.168.0.8		<--- Add 4 to the second subnet (4, 5, 6, 7) and the next number is your new subnet (which is 8)
+	Subnet 4: 192.168.0.12		<--- Add 4 to the third subnet (8, 9, 10, 11) and the next number is your required subnet (which is 12)
+
+Now that you have the address for your fourth subnet, remember two of the four host bits are reserved, the first (12) and the last (15) so that will only leave your only two available addresses 13 and 14.
+
+Step 2:
+
+	R3(config)#int g0/0						//access interface
+	R3(config-if)#ip address 192.168.0.13 255.255.255.252		//apply the first IPv4 address to the interface
+	R3(config-if)#no shutdown					//turn the interface on
+
+	R4(config)#int g0/0						//access interface
+	R4(config-if)#ip address 192.168.0.14 255.255.255.252		//apply the first IPv4 address to the interface
+	R4(config-if)#no shutdown					//turn the interface on
+
+Step 3:
+
+	R3#show ip interface brief					//verify the ip address is correct and the interface is online
+	R3#ping 192.168.0.14						//ping R2's interface
+
+	R4#show ip interface brief					//verify the IP address is correct and the interface is online
+	R4#ping 192.168.0.13						//ping R1's interface
+
+
+
+
+
+
+If you wish for more IPv4 subnetting practice, I would recommend this website: https://subnetipv4.com
+
+
+All done with this lab and first milestone into your CCNA journey! One thing that *CANNOT BE STRESSED ENOUGH* is that in Cisco's CCNA labs, you need to save the configurations. If you do not save the configurations, you won't receive any credit!
+Cisco does not want you to be using the "write" or "do write" commands to save but instead the "copy running-config startup-config" or abbreviated to "copy run start" (or "do copy run start" if you're in privileged Exec mode. All you need to do for the command is:
+
+	Router#copy run start						//command to save current configuration to memory
+	Destination filename [startup-config]? 				//hit the enter key here to save
+	Building configuration...
+	[OK]								//success!
+

@@ -1,0 +1,98 @@
+
+3.4 Configure and verify single area OSPFv2
+	3.4.a Neighbor adjacencies
+	3.4.b Point-to-point
+	3.4.c Broadcast (DR/BDR selection)
+	3.4.d Router ID
+
+
+OSPF is the first dynamic routing protocol (aside from RIP....) you will learn on your CCNA journey and for those unfamiliar with dynamic routing, the OSPF seems like a bear of an exam topic to tackle. Fortunately, the exam topics for the labs are relatively straightforward. Point-to-point is a single command, DR/BDR selection is setting a priority metric, and router ID is simply choosing the proper IP address. The only one that takes a little while to understand are the neighbor adjacencies due to the underlying protocols and this will reflect in some of the CCNA multiple-choice questions (ex: why isn't OSPF Router A forming an adjacency with Router B?). For the lab though, it's as simple as setting the OSPF process and area (3.4 only says single-area, not multiple) and the network addresses.
+
+
+Step 1:
+We will start by selecting the OSPF process the router will be using (one in this case) and setting the router-id as the loopback address. Interface IP's can be set as the router-id as well so keep that in mind!
+
+	R1(config)#router ospf 1				//enable the OSPF process 1 and enter the routing subdomain
+	R1(config-router)#router-id 192.168.1.1			//enter the router ID
+
+	R2(config)#router ospf 1 
+	R2(config-router)#router-id 192.168.2.1
+
+	R3(config)#router ospf 1 
+	R3(config-router)#router-id 192.168.3.1
+
+	R4(config)#router ospf 1 
+	R4(config-router)#router-id 192.168.4.1
+
+	R5(config)#router ospf 1 
+	R5(config-router)#router-id 192.168.5.1
+
+
+Step 2:
+We will now establish dynamic routing protocols by setting up the loopback routes throughout the topology. Remember, the subnet mask for the network ID is a wildcard so it's inverse from a normal netmask.
+
+	R1(config)#router ospf 1 
+	R1(config-router)#network 192.168.0.0 0.0.255.255 area 0		//set the wildcard mask for the loopback interfaces
+
+	R2(config)#router ospf 1 
+	R2(config-router)#network 192.168.0.0 0.0.255.255 area 0
+
+	R3(config)#router ospf 1 
+	R3(config-router)#network 192.168.0.0 0.0.255.255 area 0
+
+	R4(config)#router ospf 1 
+	R4(config-router)#network 192.168.0.0 0.0.255.255 area 0
+
+	R5(config)#router ospf 1 
+	R5(config-router)#network 192.168.0.0 0.0.255.255 area 0
+
+Step 3:
+Now we will advertise the networks themselves through the 10.0.0.0 network. This will establish adjacencies through the advertisements and dynamically learn the addresses.
+
+	R1(config-router)#network 10.0.0.0 0.0.255.255 area 0			//set the wildcard mask for the network routes
+
+	R2(config-router)#network 10.0.0.0 0.0.255.255 area 0
+
+	R3(config-router)#network 10.0.0.0 0.0.255.255 area 0
+
+	R4(config-router)#network 10.0.0.0 0.0.255.255 area 0
+
+	R1-4#show ip ospf database						//this command will show the output off all of the advertised routes in their respective areas
+
+
+Step 4:
+This is just a fancy way of saying point-to-point linking for OSPF. Point-to-point doesn't elect any DR/BDR because there's only two routers. This is for both older serial links and to help speed up convergences by dropping unnecessary traffic. This is also only applied to interfaces.
+
+	R4(config)#int g0/2
+	R4(config-if)#ip ospf 1 area 0						//enable specific ospf ID and area on the interface
+	R4(config-if)#ip ospf network point-to-point 				//OSPF point-to-point command
+
+	R5(config)#int g0/0
+	R5(config-if)#ip ospf 1 area 0
+	R5(config-if)#ip ospf network point-to-point
+
+	R4#show ip ospf database
+	R5#show ip ospf database						//you should see both routes and all of the other advertised routes in area 0
+
+
+Step 5:
+Outside of using p2p, you can also change the OSPF priority to its lowest and maximum value to dictate whether a router will always be elected DR or not be elected at all. Highest priority will always be elected DR. Lowest priority won't participate in the BR/BDR election. Priorities can only be changed from the interface.
+
+	R1(config)#int g0/1							//go to the interface that faces R3
+	R1(config-if)#ip ospf priority 255					//255 is the highest priority
+	R1(config-if)#do clear ip ospf process					//reload the process to enact the change
+		Reset ALL OSPF processes? [no]: yes				//type "yes"
+
+	R3(config)#int g0/0							//go to the interface that faces R1
+	R3(config-if)#ip ospf priority 0					//0 is the lowest priority
+	R3(config-if)#do clear ip ospf process
+		Reset ALL OSPF processes? [no]: yes
+
+	R1#show ip ospf neighbor 						//R3 should show a 0 and "DROTHER"
+	R3#show ip ospf neighbor 						//R1 should show a 255 and "DR"
+
+
+
+All done! Labbing OSPF is magnitudes easier than learning the theory behind it, even if it seems daunting at first. If you are still unfamiliar with how to lab OSPF, I would recommend taking the lab template and try adding your own routes and routers to see what will and won't connect.
+
+Don't forget to "copy run start" on any devices you configured!

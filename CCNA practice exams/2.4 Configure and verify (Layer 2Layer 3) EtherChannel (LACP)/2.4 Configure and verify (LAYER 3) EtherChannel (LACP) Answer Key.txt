@@ -1,0 +1,54 @@
+
+2.4 Configure and verify (Layer 3) EtherChannel (LACP)
+
+
+Cisco's CCNA exam does ask you to be able to configure a L3 LACP channel. It's functionally the same as a L2 except you introduce:
+	-IP routing
+	-an IP address
+	-the "no switchport" command
+So we'll start with a basic lab to touch on these subjects.
+
+
+Step 1:
+First, we need to enable IP routing on the layer 3 switches
+
+	MLS1(config)#ip routing
+	MLS2(config)#ip routing
+
+
+Step 2:
+As with the last lab, we will bundle the interfaces together, MLS1 active with the LACP protocol and MLS2 passive with the LACP protocol
+
+	MLS1(config)#int range g0/1-2
+	MLS1(config-if-range)#channel-group 1 mode active
+
+	MLS2(config)#int range g0/1-2
+	MLS2(config-if-range)#channel-group 1 mode passive
+
+
+Step 3:
+	MLS1(config)#int port-channel 1
+	MLS1(config-if)#no switchport
+	MLS1(config-if)#ip address 10.0.0.1 255.255.255.252
+
+	MLS2(config)#int port-channel 1
+	MLS2(config-if)#no switchport
+	MLS2(config-if)#ip address 10.0.0.2 255.255.255.252
+
+	MLS1#show etherchannel summary					//You will see a new flag "R" which is Layer3 routing
+	MLS2#show etherchannel summary
+
+	MLS1#show ip interface brief | exclude down			//shows the IP address associated with the EtherChannel
+	MLS2#show ip interface brief | exclude down
+
+	MLS1#ping 10.0.0.2
+	MLS2#ping 10.0.0.1
+
+
+
+
+Easy lab! Be sure to run the "copy start run" command to save any changes.
+
+
+Congratulations on finishing up the final lab for the Network Access domain for the CCNA! You have passed a major milestone in your CCNA journey and probably one of the most labor-intensive labs you can do with the "configuration" topics. The labs will be a lot shorter from here on out, but will increase in complexity in certain domains (OSPF, Access Control Lists (ACL's) and IP Connectivity configurations) but don't be afraid! You made it this far, so I earnestly believe you will be able to make it to the end and pass the CCNA!
+

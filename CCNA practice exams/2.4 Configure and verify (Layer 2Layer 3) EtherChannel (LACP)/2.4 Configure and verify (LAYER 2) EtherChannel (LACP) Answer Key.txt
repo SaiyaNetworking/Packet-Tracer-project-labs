@@ -1,0 +1,134 @@
+
+
+2.4 Configure and verify (Layer 2) EtherChannel (LACP)
+
+to quote from Neil Anderson, CCIE #17108, what an EtherChannel is:
+
+"EtherChannel is a technology wherein we bundle physical interfaces together to create a single logical link. It is also known as  Link Aggregation. It provides fault-tolerant and high-speed links between Cisco switches and routers and is often seen in the  backbone network. The approved open standard is called 802.3ad, which works with other vendors and is often called LAG"
+
+Summarized simply, it acts as a logical link that increases transmit speeds and a fail-over if one link fails. It also prevents STP from blocking interfaces. This helps network redundancy so if one interface fails (ex: int g0/1), int g0/2 can hold over until the problem is diagnosed and fixed.
+
+Don't forget that PagP is cisco-proprietary with the "auto/desirable" flags and LACP is vendor-neutral with the "active/passive" flags. We will specifically focus on LACP because that's what the exam objective calls for.
+
+
+
+
+Step 1:
+Do be mindful this first step is a doozy in terms of commands to input. The commands themselves are actually very straightforward if you remember how to configure trunk ports with the native and allowed vlans. EtherChannels only add one more layer of abstraction.
+
+	MLS(config)#int range g1/0/3-4					//select the physical interfaces to be bundled into an EtherChannel
+	MLS(config-if-range)#switchport mode trunk			//dunno why, but Packet Tracer bugs out if you don't do this first
+
+	MLS(config-if-range)#channel-group 2 mode active		//create an active EtherChannel that is actively trying to form trunks
+	MLS(config-if-range)#int port-channel2				//enter the EtherChannel's interface subdomain
+	MLS(config-if)#switchport mode trunk
+	MLS(config-if)#switchport trunk native vlan 199			//native vlan for EtherChannel
+	MLS(config-if)#switchport trunk allowed vlan 20,40		//allowed vlans on etherchannel
+
+	SW2(config)#int range g0/1-2
+	SW2(config-if-range)#switchport mode trunk
+
+	SW2(config-if-range)#channel-group 2 mode active
+	SW2(config-if-range)#int port-channel4
+	SW2(config-if)#switchport mode trunk
+	SW2(config-if)#switchport trunk native vlan 199
+	SW2(config-if)#switchport trunk allowed vlan 20,40
+
+	Note: wait a minute or two for Packet Tracer to catch up and establish connectivity
+
+	MLS#show etherchannel summary					//shows a quick summary of the EtherChannels. You want to see the (SU) flags
+	SW2#show etherchannel summary 
+
+Now we do the same thing for the interfaces on MLS facing SW4:
+
+	MLS(config)#int range g1/0/7-8
+	MLS(config-if-range)#switchport mode trunk
+
+	MLS(config-if-range)#channel-group 4 mode active
+	MLS(config-if-range)#int port-channel4
+	MLS(config-if)#switchport mode trunk
+	MLS(config-if)#switchport trunk native vlan 199
+	MLS(config-if)#switchport trunk allowed vlan 20,30,40
+
+	SW4(config)#int range g0/1-2
+	SW4(config-if-range)#switchport mode trunk
+
+	SW4(config-if-range)#channel-group 4 mode active
+	SW4(config-if-range)#int port-channel4
+	SW4(config-if)#switchport mode trunk
+	SW4(config-if)#switchport trunk native vlan 199
+	SW4(config-if)#switchport trunk allowed vlan 20,30,40
+
+	MLS#show etherchannel summary
+	SW2#show etherchannel summary
+
+	Sales1: ping 10.0.2.4
+
+
+Step 2:
+LACP has the passive link-state which means it will be on standby until an active LACP connection tries to form a trunk. We will be doing an active link on MLS's g1/0/1-2 interfaces and a passive link on SW1's g0/1-2 interfaces
+
+	MLS(config)#int range g1/0/1-2
+	MLS(config-if-range)#switchport mode trunk
+	MLS(config-if-range)#channel-group 1 mode active
+	MLS(config)#int port-channel1
+	MLS(config-if)#switchport mode trunk
+	MLS(config-if)#switchport trunk native vlan 199
+	MLS(config-if)#switchport trunk allowed vlan 10,40
+
+	SW1(config)#int range g0/1-2
+	SW1(config-if-range)#switchport mode trunk
+	SW1(config-if-range)#channel-group 1 mode passive
+	SW1(config)#int port-channel1
+	SW1(config-if)#switchport mode trunk
+	SW1(config-if)#switchport trunk native vlan 199
+	SW1(config-if)#switchport trunk allowed vlan 10,40
+
+	MLS#show etherchannel summary
+	SW1#show etherchannel summary 
+
+	Admin PC: Ping 10.0.2.4						//you might need to ping the gateway first for the MLS to set up a route
+
+
+Step 3:
+A bit of a trick question (Cisco loves trick questions). Going back to your studies, two passive interfaces cannot link together since neither are sending any advertisements to each other. What this ends up being is a broken ethernet channel relying on the current trunk interface
+
+	MLS(config)#int range g1/0/5-6
+	MLS(config-if-range)#switchport mode trunk
+	MLS(config-if-range)#channel-group 3 mode passive		//first passive interface
+
+	MLS(config)#int port-channel3
+	MLS(config-if)#switchport mode trunk
+	MLS(config-if)#switchport trunk native vlan 199
+	MLS(config-if)#switchport trunk allowed vlan 30,40
+
+	SW3(config)#int range g0/1-2
+	SW3(config-if-range)#switchport mode trunk
+	SW3(config-if-range)#channel-group 3 mode passive		//second passive interface
+
+	SW3(config)#int port-channel3
+	SW3(config-if)#switchport mode trunk
+	SW3(config-if)#switchport trunk native vlan 199
+	SW3(config-if)#switchport trunk allowed vlan 30,40
+
+	MLS#show etherchannel summary					//you will see po3 has the D flag for "down"
+	SW3#show etherchannel summary					//same thing
+
+	Admin PC: ping 10.0.3.2
+Even though the EtherChannels are down, the Admin PC can still ping Eng1. This gives the illusion the etherchannel is working when the "show etherchannel summary" command shows it's actually down. Be sure to verify your configurations!
+
+
+Step 4:
+We clearly see that from the "show etherchannel summary" output that Po3 is down. We can fix that by setting po3 to an active state.
+
+	MLS(config)#int range g1/0/5-6
+	MLS(config-if-range)#channel-group 3 mode active		//will change the etherchannel's protocol without erasing the configs
+
+	MLS#show etherchannel summary					//you will now see po3 has the U flag for "Up"
+	SW3#show etherchannel summary
+
+
+Good job on finishing another equally-arduous lab configuring trunk ports. In your career as a networking specialist, you will not only come to appreciate EtherChannel ports but also rely on their redundancy and throughput.
+
+
+Be sure to run the "copy start run" command on all devices you configured.

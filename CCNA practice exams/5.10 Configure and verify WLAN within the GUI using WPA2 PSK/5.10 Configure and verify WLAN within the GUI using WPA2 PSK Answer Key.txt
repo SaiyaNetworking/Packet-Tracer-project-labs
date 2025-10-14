@@ -1,0 +1,71 @@
+
+5.10 Configure and verify WLAN within the GUI using WPA2 PSK
+
+
+I do have to apologize. With Cisco's recent changes to the exam topics with v1.1, it seems like Cisco really wants to offload the wireless topics from the CCNP ENCOR into a more simplified, Wireless Lan Controller (WLC) variant onto the CCNA. A lot of wireless questions are going to be on topics such as:
+
+	1.0 NETWORK FUNDAMENTALS			25%
+		1.1 Explain the role and function of network components
+			1.1.e Controllers (Cisco DNA Center and WLC)
+		1.11 Describe wireless principles
+			1.11.a Nonoverlapping Wi-Fi channels
+			1.11.b SSID
+			1.11.c RF
+			1.11.d Encryption
+
+	2.0 NETWORK ACCESS				20%
+		2.6 Describe Cisco Wireless Architectures and AP modes
+		2.7 Describe physical infrastructure connections of WLAN components (AP, WLC, access/trunk ports, and LAG)
+		2.9 Interpret the wireless LAN GUI configuration for client connectivity, such as WLAN creation, security settings, QoS profiles, and advanced settings
+
+	5.0 SECURITY FUNDAMENTALS			15%
+		5.9 Describe wireless security protocols (WPA, WPA2, and WPA3)
+		5.10 Configure and verify WLAN within the GUI using WPA2 PSK
+
+For the three keyword topics that I could reasonably decipher without encroaching on the NDA agreement:
+	Explain = understand the concepts to where you could reasonably explain what they do to a non-technical or technical person
+	Describe = definitions, functions and limitation of protocols and keyword definitions themselves.
+	Interpret = be able to read and understand the WLC GUI itself and the pages that configure the topics (ex. understand the QoS profiles webpage tab for the WLC)
+	Configure = be able to configure and select the proper options to apply a WPA2 PSK configuration
+
+
+Packet Tracer is extremely limited in what it can actually do with the WLC. I'll set up a basic lab to where you can just interact with the webpage itself. What I would suggest is:
+	1) Go through each topic on the exam list and define what you need to look for (ex. 2.9 is asking you to understand how to set up an SSID from the WLC webpage.)
+	2) Go through the Packet Tracer WLC and write notes on where the configurations are (QoS? Look at the QoS page. WPA3? Look at the security tab)
+		2.1) Using Jeremy's IT Lab or Wendell Odem's Official Cert Guide, write notes on how to set up these configurations
+	3) Anything that you're not sure of, I would either reference using Cisco's whitepapers (this is going to be common theme if you pursue your CCNP) 
+		https://www.cisco.com/c/en/us/td/docs/wireless/controller/8-10/config-guide/b_cg810.html
+	4) Google/chatGPT what each and every option does that Packet Tracer doesn't support
+
+I would probably say roughly 20-30% of my exam was strictly wireless questions. It was a lot and it probably constituted (only guessing) 15-25% of my total exam score.
+
+
+~~Lab~~
+Half of the things don't even work on Packet Tracer. I would recommend using Cisco Modeling Labs (CML) or even the Meraki demo on Cisco's website: https://content.ciscodcloud.com/content/cisco-dcloud/us/en/home.html
+
+WLC Management Account (setup)
+	URL: https://10.0.0.10
+	Login: admin
+	Password: Password1
+	Management IP: 10.0.0.10
+	DNS Server: 10.0.0.3
+	
+SSID management
+	Name: test
+	Passphrase: password
+	Virtual IP: 10.0.1.1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

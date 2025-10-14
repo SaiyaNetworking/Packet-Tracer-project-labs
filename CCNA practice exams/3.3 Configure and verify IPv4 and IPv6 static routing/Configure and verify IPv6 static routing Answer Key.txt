@@ -1,0 +1,131 @@
+
+3.3 Configure and verify IPv4 and IPv6 static routing
+	3.3.a Default route
+	3.3.b Network route
+	3.3.c Host route
+	3.3.d Floating static
+
+Fortunately for this exam topic, static routing for IPv6 is also a very straightforward process, but it will require you to be able to read the network topology and understand certain keywords such as:
+	-Destination address			//destination the IP packet is heading
+	-Next-hop address			//the next hop the IP packet needs to move forward to
+	-Network route				//the specified network address the IP packet is heading
+	-Host route				//the specified host of a network the IP packet is heading
+	-Floating static route			//a secondary route that can act as a backup route if the first route fails
+	-Default route				//a "route of last resort" that pushes an unknown packet route to the default next hop
+	-Recursive route			//a route that just points out of the interface without a destination address
+
+The CCNA requires that you know all of these for both IPv4 and IPv6. Fortunately they both behave almost the exact same way (IPv6 has more bells and whistles to help in routing along with point-to-point routing, more on that in the next lab.) For this IPv6 lab, we're going to focus on IPv6 routing and use the same template as we did for the IPv4 routing. We will also use the 2001:0db8::/64 address since this also an example-address.
+Don't forget! zeros can either be omitted going left -> right or blocks omitted using the double colon "::". 2001:0db8:0000:0000:0000:0000:0000:0000/64 can become 2001:db8::/64
+
+
+Step 1:
+We should want to set up IPv6 addresses onto the routers even though that's in exam topic 1.8. The reason being some of the CCNA labs will require you to both add IPv6 addresses and configure the routes. Do be mindful that the host bits "1" and "2" will be used a lot, double-check that you are not mixing up subnets and host bit addresses.
+
+	R1(config)#ipv6 unicast-routing				//enables IPv6 routing
+	R1(config)#interface g0/0
+	R1(config-if)#ipv6 address 2001:db8:1::1/64		//need to use the "ipv6 address" command specifically for IPv6 addresses
+	R1(config-if)#int g0/1
+	R1(config-if)#ipv6 address 2001:db8:2::1/64
+
+	R1#show ipv6 interface brief 				//verify the correct IPv6 addresses are on the proper interfaces
+
+	R2(config)#ipv6 unicast-routing 
+	R2(config)#int g0/0
+	R2(config-if)#ipv6 address 2001:db8:1::2/64
+	R2(config-if)#int g0/1
+	R2(config-if)#ipv6 address 2001:db8:3::1/64
+
+	R2#show ipv6 interface brief
+
+	R3(config)#ipv6 unicast-routing
+	R3(config)#int g0/0
+	R3(config-if)#ipv6 address 2001:db8:2::2/64
+	R3(config-if)#int g0/1
+	R3(config-if)#ipv6 address 2001:db8:4::1/64
+
+	R3#show ipv6 interface brief
+
+	R4(config)#ipv6 unicast-routing
+	R4(config)#int g0/0
+	R4(config-if)#ipv6 address 2001:db8:4::2/64
+	R4(config-if)#int g0/1
+	R4(config-if)#ipv6 address 2001:db8:3::2/64
+	R4(config-if)#int g0/2
+	R4(config-if)#ipv6 address 2001:db8:5::1/64
+
+	R4#show ipv6 interface brief
+
+
+Step 2:
+Just as with a fully specified IPv4 route command, we can do the same thing with an IPv6 route command with a slightly different syntax:
+	(config)#ipv6 route [destination IPv6 address/[prefix] [interface] [next-hop IPv6 address]		//no subnet mask but rather the prefix will substitute in
+
+	R1(config)#ipv6 route 2001:db8:4::/64 gigabitEthernet 0/1 2001:db8:2::2
+
+	R1#ping 2001:db8:4::1					//pinging R3's g0/1 IPv6 interface will be successful.
+
+
+Step 3: We can also use a host route but instead of the /64 prefix, we will use a /128 prefix
+	(config)#ipv6 route [destination IPv6 address/128 [interface] [next-hop IPv6 address]
+
+	R1(config)#ipv6 route 2001:db8:3::2/128 gigabitEthernet 0/0 2001:db8:1::2
+	R2(config)#ipv6 route 2001:db8:3::2/128 gigabitEthernet 0/1 2001:db8:3::2
+	R4(config)#ipv6 route 2001:db8:1::1/128 gigabitEthernet 0/1 2001:db8:3::1
+
+	R1#ping 2001:db8:3::2
+	R1#traceroute 2001:db8:3::2
+
+
+Step 4:
+We will be including both the IPv6 static route and an IPv6 recursive route pointing towards the ISP. As with the last lab, the ISP's IP address is "unknown." In some of the CCNA labs, some devices will be grayed out and unable to be interacted with. We want to simulate this here. The command for an IPv6 default route is:
+	(config)# ipv6 route ::/0 [interface] [next-hop IPv6 address]
+The recursive route command for IPv6 will be:
+	(config)# ipv6 route ::/0 [interface]
+
+
+	R2(config)#ipv6 route ::/0 gigabitEthernet 0/1 2001:db8:3::2
+	R4(config)#ipv6 route ::/0 gigabitEthernet 0/2
+
+	R2#ping 2001:db8:5::1
+
+
+Step 5:
+IPv6 routes can also be floating static routes! It's essentially the same setup as an IPv4 while following IPv6 syntax. The command will be:
+	R1(config)#ipv6 route [destination IPv6 address/[prefix] [interface] [next-hop IPv6 address] [Administrative Distace]
+
+	R1(config)#ipv6 route 2001:db8:3::2/128 gigabitEthernet 0/1 2001:db8:2::2 2		//this will also use the /128 prefix for a host with the AD of 2 at the end
+	R3(config)#ipv6 route 2001:db8:3::2/128 gigabitEthernet 0/1 2001:db8:4::2 2
+	R4(config)#ipv6 route 2001:db8:2::1/128 gigabitEthernet 0/0 2001:db8:4::1 2		//don't forget the return route
+
+	R1#traceroute 2001:db8:3::2								//R1 still takes the route through R2. Lets disable R1's g0/0 interface
+
+	R1(config)#int g0/0									//interface connected to R2
+	R1(config-if)#shutdown									//shut it down!
+
+	R1#ping 2001:db8:3::2									//ping still works
+	R1#traceroute 2001:db8:3::2								//as we can see, R1 now takes the route through R3 to R4
+
+
+Step 6:
+While the CCNA does not *explicitly* state you need to autoconfigure addresses using EUI-64, I do believe it's covered in the exam. "modified extended unique identifier"" is just a fancy way of saying "use the mac address of the hardware to make a unique IPv6 address." The command is:
+	R1(config-if)#ipv6 address [IPv6 network address]/64 eui-64
+
+	R1(config)#int g0/2									//interface facing R5
+	R1(config-if)#ipv6 address 2001:db8::/64 eui-64						//command to make a unique IPv6 address based off of the MAC address
+
+	R1#show ipv6 interface brief								//look for the "2001:bd8..." IPv6 address under g0/2. This is your unique address
+
+	R5(config)#int g0/0
+	R5(config-if)#ipv6 address 2001:db8::/64 eui-64
+
+	R5#show ipv6 interface brief
+
+	R1#ping (shown IPv6 address on R5's g0/0)						//ping the unique address
+	R5#ping (shown IPv6 address on R1's g0/2)						//ping the other unique address
+
+
+
+Great job on this lab! IPv6 can appear to be a bear at first (and is when you get into the anycast/multicast), but for the CCNA it is almost as straightforward as IPv4 static routing. Be sure to save any configurations using the "copy start run" command.
+
+
+

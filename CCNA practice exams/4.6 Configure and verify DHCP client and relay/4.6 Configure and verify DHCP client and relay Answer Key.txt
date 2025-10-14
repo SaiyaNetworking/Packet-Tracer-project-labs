@@ -1,0 +1,36 @@
+
+4.6 Configure and verify DHCP client and relay
+
+While setting up a DHCP server in Packet Tracer can be convoluted due to bugs, the slowness of Packet Tracer itself, and the ability to make a type, the exam topics are actually very straightforward and do not require DHCP server setups, DHCP networks, but topics just being "DHCP client" and "DHCP relay."
+	DHCP client is simply a client requesting a DHCP address from the server
+	DHCP relay is a hardware item, usually a L3 switch or router, pointing DHCP requests to the DHCP server
+
+
+Step 1:
+
+	R1(config)#int g0/0				//select the interface facing the ISP router
+	R1(config-if)#ip address dhcp			//request an IP address from the dhcp server
+	R1(config-if)#no shutdown			//turn the interface on
+
+	//Information the Router will output to notify it has received an IP address of  from the ISP.
+	%DHCP-6-ADDRESS_ASSIGN: Interface GigabitEthernet0/0 assigned DHCP address 203.0.113.2, mask 255.255.255.252, hostname R1
+
+	R1#show ip interface brief			//we can see R1 was automatically assigned an IP address from the ISP DHCP server on interface g0/0
+
+
+Step 2:
+We can currently see that PC1 has no IP address and if we configure PC1 to receive an IP address using the DHCP option, it will only be assigned an APIPA address. APIPA being a self-assigned IP address of 169.254.x.x from the inability to resolve a DHCP request. Let's solve this problem in the next step.
+
+
+Step 3:
+	R1 needs to forward DHCP requests to the DHCP-LOCAL server. We do this by using a command to point to the DHCP server or what we call a DHCP relay.
+
+	R1(config)#int g0/2				//select the interface that is receiving the DHCP requests
+	R1(config-if)#ip helper-address 10.0.1.1 	//enter the DHCP's server IP address
+
+	PC3: IP Configuration DHCP			//should automatically be assigned a random IP address within the 10.0.0.0/24 subnet that isn't the gateway
+
+
+
+Easy lab! Don't forget to "copy run start" to save any configurations made.
+

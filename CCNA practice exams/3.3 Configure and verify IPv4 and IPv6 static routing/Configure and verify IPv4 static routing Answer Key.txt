@@ -1,0 +1,68 @@
+
+3.3 Configure and verify IPv4 and IPv6 static routing
+	3.3.a Default route
+	3.3.b Network route
+	3.3.c Host route
+	3.3.d Floating static
+
+Fortunately for this exam topic, static routing is a very straightforward process that requires you to be able to read the network topology and understand certain keywords such as:
+	-Destination address			//destination the IP packet is heading
+	-Next-hop address			//the next hop the IP packet needs to move forward to
+	-Network route				//the specified network address the IP packet is heading
+	-Host route				//the specified host of a network the IP packet is heading
+	-Floating static route			//a secondary route that can act as a backup route if the first route fails
+	-Default route				//a "route of last resort" that pushes an unknown packet route to the default next hop
+	-Recursive route			//a route that just points out of the interface without a destination address
+
+The CCNA requires that you know all of these for both IPv4 and IPv6. Fortunately they both behave almost the exact same way (IPv6 has more bells and whistles to help in routing along with point-to-point routing, more on that in the next lab.) For this lab, we're going to focus on IPv4 routing and use the same template for the IPv6 routing. We will also use the 203.0.113.0/24 subnet, a commonly used address for example-use. We want to use this address because Cisco will use examples of public IPv4 addresses for these labs instead of the more simplistic 10.0.0.0/192.168.0.0 that we have been using so far.
+
+
+Step 1:
+Don't forgot that there are a few different static route commands you can use, which for this step we will use a fully specified static route:
+	(config)ip route [destination IP] [subnet mask] [forwarding router's address]
+
+	R1(config)#ip route 203.0.113.136 255.255.255.252 203.0.113.70		//fully specified route to the network
+	R1#ping 203.0.113.137							//ping R3's g0/1 interface to verify you can ping within the network
+
+
+Step 2:
+A host route is a route that only specifies a specific host address. Similar to a loopback address, the subnet mask is only going to be .255's:
+	(config)ip route [destination IP] 255.255.255.255 [forwarding router's address]
+
+	R1(config)#ip route 203.0.113.206 255.255.255.255 203.0.113.2		//set the host destination going through R2
+	R2(config)#ip route 203.0.113.206 255.255.255.255 203.0.113.206		//host and destination address share the same IP, so go ahead and use them both
+	R4(config)#ip route 203.0.113.1 255.255.255.255 203.0.113.205		//be sure to allow R4 to have the ability to communicate back to the original sender!
+
+	R1#ping 203.0.113.206							//R1 can now ping the g0/1 interface of R4
+	R1#traceroute 203.0.113.206						//Traceroute will show the packet's path of travel to the destination
+
+
+Step 3:
+A default route is usually what you use to push packets to unknown destinations, normally out past the gateway (where the internet is.) We will use both a fully specified default route for R2 and a recursive route for R4 since the ISP's IP is "unknown." We want the ISP to remain "unknown" because even though you can just click on the ISP router in packet tracer, you can't walk over to your ISP building and "click" on your connected interface. The ISP can also change routes as well.
+	The default route fully specified command is:
+		(config)#ip route 0.0.0.0 0.0.0.0 [next hop address]
+	The recursive route command is:
+		(config)#ip route 0.0.0.0 0.0.0.0 [outbound interface]
+
+	R2(config)#ip route 0.0.0.0 0.0.0.0 203.0.113.206			//default routes use the 0.0.0.0 0.0.0.0 route.
+	R4(config)#ip route 0.0.0.0 0.0.0.0 gigabitEthernet 0/2			//we don't "know" the next-hop address of the ISP, so we just use a recursive route
+
+Step 4:
+A floating static route is a secondary or backup route configured in case one route fails for whatever reason. For this specific example, R1's g0/0 interface will "fail" (or at least go down for maintenance) but we will still have the ability to reach the 203.0.113.204 network address from R3 and R4's routes. A floating static route will have a configured Administrative Distance (AD) between 1-255. For our lab, we can use anything from 2-254 because there is only one static route with an AD of 1. In the real world, static routes will usually be failovers from certain protocols going down (ex. 111 for floating static over OSPF or 254 as a final backup). 255 cannot be used because it will not forward the packet but rather invalidate that route and treat is as untrusted. The command for a floating static is:
+	(config)ip route [destination IP] [subnet mask] [forwarding router's address] [Administrative Distance of 1 to 255)
+
+	R1(config)#ip route 203.0.113.206 255.255.255.255 203.0.113.70 2	//R1 has a floating static route going through R3 to host R4
+	R3(config)#ip route 203.0.113.206 255.255.255.255 203.0.113.138 2	//R3 will need to forward the route
+	R4(config)#ip route 203.0.113.69 255.255.255.255 203.0.113.137 2	//R4 needs a return route. Remember, different IP return address for R1!
+
+	R1#traceroute 203.0.113.206						//As you can see, R1 still takes the path through R2 to reach host R4 because there's no reason not to
+
+	R1(config)#int g0/0							//access the interface pointing to R2
+	R1(config-if)#shutdown							//now we shut down the interface connected to R2
+
+	R1#traceroute 203.0.113.206						//R1 now takes the floating static route to R4's host address 203.0.113.206
+
+
+
+
+Easy stuff for a domain that has a huge weight (30%)! Be sure to save any configuration changes with "copy start run"

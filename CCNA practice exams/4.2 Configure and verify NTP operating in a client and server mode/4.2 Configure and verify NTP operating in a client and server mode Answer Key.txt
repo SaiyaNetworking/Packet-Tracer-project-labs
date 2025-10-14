@@ -1,0 +1,40 @@
+
+4.2 Configure and verify NTP operating in a client and server mode
+
+
+This is a very straightforward lab. The theory behind NTP is a lot more involved, but the commands that the exam topics ask for are only "client mode" and "server mode." If you don't know what Network Time Protocol (NTP) is, it's a time management protocol that has a central server (be it local or upstream) relays the date and time.
+
+
+Step 1:
+The NTP master command is to establish an upstream for NTP synchronization. A lower stratum has a lower mastery and a higher stratum has a higher mastery. Zero is self-referencing and usually reserved for dedicated systems (like an atomic clock). We will use the next-highest allowable which is Stratum 1
+
+	R1(config)#ntp master 1					//set the NTP server on the device with the highest stratum of 1
+
+And that's literally it.
+
+
+Step 2:
+While we are using R1's loopback address as the IP, we could also use an IP address off of an interface (such as 10.0.0.1) as a hint. Also be mindful NTP does take a minute or two to sync up in Packet Tracer.
+
+	R2(config)#ntp server 192.168.1.1			//point to the NTP server which is the loopback interface on R1
+
+	R2#show ntp status 					//look for the "clock is synchronized" statement.\
+
+
+Step 3:
+The time is wildly off, showing (0:9:7.160 UTC Mon Mar 1 1993). Lets fix that according to the diagram.
+
+	R1#clock set 00:00:00 October 1 2025			//set the clock date
+	R1#show clock						//you should see the new time of (0:0:19.127 UTC Wed Oct 1 2025), slight variation as the clock starts moving
+
+	Note: Be sure to give Packet Tracer a minute to synchronize
+	R2#show clock						//R2 is now updated with R1's clock (0:3:15.140 UTC Wed Oct 1 2025)
+
+
+
+
+And we're all done! Be sure to "copy start run" to save any configurations.
+
+
+
+

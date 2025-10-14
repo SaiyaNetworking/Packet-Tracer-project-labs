@@ -1,0 +1,129 @@
+2.3 Configure and verify Layer 2 discovery protocols (Cisco Discovery Protocol and Link-Layer Discovery Protocol)
+
+Link-Layer Discovery Protocol (LLDP) is the bread and butter of your network discovery but in the Cisco environment, LLDP is disabled by default and instead is used by the Cisco-proprietary Cisco Discovery Protocol (CDP) We will be usingCDP first and understand how:
+
+	- You can see other Cisco devices directly connected on the interfaces
+	- How to enable and disable CDP globally
+	- How to enable and disable CDP on specific interfaces
+
+The same will be done with LLDP with the only caveat being that LLDP needs to be globally enabled first!
+
+Note: CDP and LLDP do take a little time to "fire up" and "wind down" if you will. Take a few seconds to a minute to wait for the devices to communicate with each other especially when enabling and disabling the protocols.
+
+Step 1:
+You will be able to see the neighbor outputs and who is directly connected to the device using the "show CDP neighbors" command. This will be a very valuable command to know on the exam if you're unsure about what interface is what! You will also see that the MLS switch can see all four switches but the access switches can only see the MLS switch.
+
+	MLS#show cdp neighbors				//outputs other Cisco devices using CDP
+
+	SW1-4#show cdp neighbors 
+
+
+Step 2:
+CDP can be disabled globally which means to completely turn off CDP discovery on that specific devices.
+
+	MLS(config)#no cdp run 				//disable CDP globally
+	MLS(config)#do show cdp neighbors		//will show an output that CDP is not enabled
+
+	SW1#show cdp neighbors				//after the holdtime timer runs out, the CDP neighbor will be dropped from the table
+
+	MLS(config)#cdp run				//enable CDP globally
+
+
+Step 3:
+CDP can also be enabled and disabled on an interface. You would do this to enhance security and prevent an end-user from sending discovery requests and mapping out your network.
+
+	MLS(config)#int g1/0/1				//enter the interface you want to disable CDP from
+	MLS(config-if)#no cdp enable			//disable CDP on that interface
+
+	**wait for the holdtime to run out**
+	MLS#show cdp neighbors				//you will see that MLS no longer sees SW1 as a CDP neighbor but sees the other switches.
+
+	SW1#show cdp neighbors				//SW1 can no longer see MLS
+
+	SW2-4#show cdp neighbors			//still have the ability to see MLS
+
+	MLS(config)#int g1/0/4
+	MLS(config-if)#no cdp enable
+
+
+Step 4:
+LLDP is the standard defined by the IEEE (802.1AB) and is vendor-neutral. For most network setups, you will most likely be using LLDP over CDP.
+
+	MLS(config)#lldp run				//enable LLDP globally
+
+	MLS#show lldp neighbors				//shows the LLDP neighbors. There won't be any neighbors because LLDP isn't enabled elsewhere 
+
+	SW1,4(config)#lldp run
+
+	MLS#show lldp neighbors				//you should now see the LLDP neighbors SW1 and SW4
+
+	SW1,4#show lldp neighbors			//as with CDP, SW1 will only show the directly-connected neighbor which is MLS
+
+
+
+
+Step 5:
+Even if LLDP and/or CDP are not enabled globally, it's still best practice to disable all discovery protocols on interfaces associated with end users in the event LLDP/CDP are enabled globally.
+
+	SW1(config)#int f0/1				//end user interface
+	SW1(config-if)#no cdp enable
+	SW1(config-if)#no lldp transmit			//specifically denies lldp advertisement
+	SW1(config-if)#no lldp receive 			//specifically denies lldp reception
+
+	SW1(config)#int f0/1
+	SW1(config-if)#no cdp enable
+	SW1(config-if)#no lldp transmit
+	SW1(config-if)#no lldp receive
+
+	SW2(config)#int range f0/1-2			//specifies the interface range. Easier to apply commands across multiple interfaces at once
+	SW2(config-if)#no lldp transmit			//specifically denies lldp advertisement
+	SW2(config-if)#no lldp receive 			//specifically denies lldp reception
+	SW2(config-if)#no cdp enable
+
+	SW3(config)#int f0/1
+	SW3(config-if)#no cdp enable
+	SW3(config-if)#no lldp transmit
+	SW3(config-if)#no lldp receive
+
+	SW4(config)#int range f0/1-2
+	SW4(config-if)#no cdp enable
+	SW4(config-if)#no lldp transmit
+	SW4(config-if)#no lldp receive
+
+
+Step 6:
+It's also best practice to disable unused discovery protocols globally or on interfaces on the backbone of the network. 
+
+	SW1(config)#no cdp run				//remember, CDP is enabled by default and must be disabled
+	SW1(config)#int g0/1
+	SW1(config-if)#no cdp enable 
+
+	SW4(config)#no cdp run
+	SW4(config)#int g0/1
+	SW4(config-if)#no cdp enable 
+
+	SW2(config)#int g0/1				//lldp isn't enabled by default on Cisco devices so there's no need for "no lldp run"
+	SW2(config-if)#no lldp receive
+	SW2(config-if)#no lldp transmit
+
+	SW3(config)#int g0/1
+	SW3(config-if)#no lldp receive 
+	SW3(config-if)#no lldp transmit
+
+	MLS(config)#int range g1/0/1,g1/0/4		//remember, the MLS is using both CDP and LLDP. Neither should be disabled globally,
+	MLS(config-if-range)#no cdp enable		//otherwise you won't receive discovery requests from the disabled protocol
+
+
+~~Note: Packet Tracer doesn't have the lldp commands on the interfaces of multilayer switches but it is expected in the exam you have the ability to disable LLDP on the interfaces.
+
+	MLS(config)#int range g1/0/2-3
+	MLS(config-if-range)#no lldp receive
+	MLS(config-if-range)#no lldp transmit
+
+
+
+Good job on completing this lab! CDP and LLDP are integral parts of learning and mapping out your network infrastructure. It's also import to be able to properly secure your protocols from being abused by potential attackers wanting to map out your network.
+
+Don't forget to "copy run start" any configuration changes you made.
+
+

@@ -1,0 +1,58 @@
+Configure and verify IPv6 addressing and prefix answer key:
+
+IPv6 addresses are a very straightforward process for the CCNA lab exams. What will be needed mostis to both be able to read what the exam is asking you (ex. use the next available subnet than the one listed) and to remember to enable the unicast-routing protocol.
+
+~~Routers 1 and 2~~
+Steps 1 and 2:
+
+	R1(config)#ipv6 unicast-routing			//enable IPv6 routing (step 2)
+	R1(config)#int g0/0
+	R1(config-if)#ipv6 address 2001:db8::1/64	//apply static IPv6 (step 1)
+	R1(config-if)#no shutdown			//turn on the interface
+
+	R2(config)#ipv6 unicast-routing
+	R2(config)#int g0/0
+	R2(config-if)#ipv6 address 2001:db8::2/64
+	R2(config-if)#no shutdown
+
+Step 3:
+
+	R1#show ipv6 interface brief			//verify the IPv6 address is applied to the interface
+	R2#show ipv6 interface brief 
+	R1#ping 2001:db8::2				//verify that R1 can ping R2's IPv6 interface
+	R2#ping 2001:db8::1				//verify R2 can ping R1's interface
+
+
+~~Routers 3 and 4~~
+Steps 1 and 2:
+
+	R3(config)#ipv6 unicast-routing
+	R3(config)#int g0/0
+	R3(config-if)#ipv6 address 2001:db8::/64 eui-64 	//apply a dynamic IPv6 address using the interface's MAC address
+	R3(config-if)#no shutdown
+
+	R4(config)#ipv6 unicast-routing
+	R4(config)#int g0/0
+	R4(config-if)#ipv6 address 2001:db8::/64 eui-64
+	R4(config-if)#no shutdown
+
+Step 3:
+
+	R3#show ipv6 interface brief			//show the unique IPv6 address on the interface
+	R4#show ipv6 interface brief
+	R3#ping [unique IPv6 address]			//ex: ping 2001:DB8::205:5EFF:FE20:5201
+	R4#ping [unique IPv6 address]			//ex: ping 2001:DB8::204:9AFF:FEDA:8B01
+
+
+
+
+As you can see, while learning the rigors of IPv4 addressing, IPv6 seems like an extremely daunting task to learn and understand, but when given the chance to practice, it can be just as straightforward (and even more preferable!) than IPv4 addressing.
+
+Note: You may see an extra address under the "show ipv6 interface brief" command that starts with "FE80::". This is a link-local address, an address automatically configured on every IPv6-enabled network interface that allows certain IPv6 protocols to function like the Neighbor Discovery Protocol (NDP)
+
+
+Don't forget to use the "copy run start" command to save any configuration changes to not lose any points on your CCNA labs.
+
+
+
+

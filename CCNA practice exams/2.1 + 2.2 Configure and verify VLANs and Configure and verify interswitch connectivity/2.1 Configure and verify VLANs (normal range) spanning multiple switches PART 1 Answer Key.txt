@@ -1,0 +1,86 @@
+2.1 Configure and verify VLANs (normal range) spanning multiple switches PART 1
+	2.1.a Access ports (data and voice)
+	2.1.b Default VLAN
+
+VLAN can be very enigmatic for anybody who has either never set up a VLAN or has set up a VLAN but has never seen what is under the hood. For this lab, we are going to explore the major functions of how to deploy a VLAN and how to connect them.
+
+Ping all of the systems first to verify everything can see each other on the same LAN:
+	Admin: ping 10.0.0.3
+	Admin: ping 10.0.0.4
+	Admin: ping 10.0.0.5
+
+We do this first to prove that all of the PC's can reach each other.
+
+
+Step 1:
+
+	SW1(config)#vlan 10			//Adds vlans 10,20,30,40 to the switch
+	SW1(config-vlan)#vlan 20
+	SW1(config-vlan)#vlan 30
+	SW1(config-vlan)#vlan 40
+
+	SW1#show vlan brief			//shows the VLANs associated to the switch
+
+
+Step 2:
+
+	SW1(config)#vlan 10			//enters into the VLAN subconfiguration menu
+	SW1(config-vlan)#name Administration	//names the VLAN number
+	SW1(config-vlan)#vlan 20
+	SW1(config-vlan)#name Sales
+	SW1(config-vlan)#vlan 30
+	SW1(config-vlan)#name Engineering
+	SW1(config-vlan)#vlan 40
+	SW1(config-vlan)#name Phone
+
+	SW1(config)#do show vlan brief		//shows the VLAN with the associated name
+
+
+Step 3:
+Remember, access ports only allow one vlan per port.
+
+	SW1(config)#int f0/1				//access the interface the vlan will be on
+	SW1(config-if)#switchport mode access		//turn the port into an access port
+	SW1(config-if)#switchport access vlan 10	//tells the port which vlan to be associate with
+	SW1(config)#int f0/2
+	SW1(config-if)#switchport mode access
+	SW1(config-if)#switchport access vlan 20
+	SW1(config)#int f0/3
+	SW1(config-if)#switchport mode access
+	SW1(config-if)#switchport access vlan 30
+	SW2(config)#int f0/4
+	SW2(config-if)#switchport mode access
+	SW2(config-if)#switchport access vlan 40
+
+	SW1(config)#do show vlan brief			//verify the appropriate port is on the correct vlan
+
+Step 4:
+	Eng1 ping 10.0.0.3				//Eng1 cannot ping Sales because the switch won't broadcast to different vlans
+	Eng1 ping 10.0.0.5				//Eng1 can ping Eng2 because the switch will broadcast on the same vlan
+
+
+Step 5:
+There is an exception to the one vlan per access port rule, and that is the "switchport voice vlan" command that will allow an IP phone on the same access port
+
+	SW1(config)#int f0/1
+	SW1(config-if)#switchport voice vlan 40		//CLI command to allow VOIP vlans through the same access port
+	SW1(config)#int f0/2
+	SW1(config-if)#switchport voice vlan 40		
+
+	SW1(config)#do show vlan brief			//Verify the port is on the VLAN 40 Voice category
+
+
+Step 6:
+Going back to your studies, the default VLAN is the initial VLAN that is set up on your switch along with VLAN's 1002-1005. VLAN 1, or the default VLAN, primarily sends protocol traffic like Cisco Discovery Protocol (CDP), Spanning Tree Protocol (STP) and will function as the native VLAN unless changed (more on that in the next lab). For now, it's just the default option.
+
+
+	SW1#show vlan brief				//shows which VLAN is the default VLAN which is 1 in this case
+
+
+
+As you can see, setting up VLANs in a lab environment can actually be a very straightforward process and helps segment up your network for security purposes.
+
+Don't forget to save your configurations using the "copy start run" command.
+
+
+

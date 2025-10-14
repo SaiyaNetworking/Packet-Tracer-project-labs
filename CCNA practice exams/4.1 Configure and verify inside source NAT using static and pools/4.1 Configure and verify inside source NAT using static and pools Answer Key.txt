@@ -1,0 +1,111 @@
+4.1 Configure and verify inside source NAT using static and pools
+
+For Network Address Translations (NAT), there are three specific types of NAT we need to be able to identify and configure and those are:
+	Static NAT: a 1-to-1 translation statically configured.
+	Dynamic NAT: a 1-to-1 translation dynamically configured
+	Port Address Translation (PAT or NAT overload): a many-to-1 translation dynamically configured
+
+In the modern world, most everyone uses PAT which is normally auto-configured from the get-go. If you think about it, you could have up to 3-20 devices on your home router but they will all share the same inside global address but they won't have a unique outside global address. For the CCNA, you will need to focus on mainly static NAT and dynamic NAT. PAT, or NAT overload, is a very straightforward command and won't need much thought behind it (you'll see why shortly near the end of the lab.)
+
+Note: The routers will drop their NAT listings pretty often so if you don't see anything from the "show" commands, have your end users (the PC's) ping through the router again.
+
+
+Step 1:
+The easiest way to understand which way is NAT inside and NAT outside is to think about how the packets are traveling. If they are traveling outward *to be* translated, the 	it's NAT Outside:
+		Packet being translated outward ----------> NAT Outside
+	If a packet is traveling inward *to be* translated, then it's NAT inside:
+		Nat Inside <-----------  Packet being translated inward
+
+Another analogy is a window inside of the house. When you look outside a window from inside the house, your view is being "translated" to the outside world. If you are outside of the house and you're viewing inside of (hopefully) your own home, your view is being "translated" to the inside world. That is how a private IP/inside local (inside the house) and a Public IP/inside global (outside the house) work when it comes to NAT.
+
+	R1(config-if)#int g0/2					//outside interface (looking out the window)
+	R1(config-if)#ip nat outside				//configure for NAT outside
+	R1(config-if)#int range g0/0-1				//inside interfaces (looking in the window)
+	R1(config-if-range)#ip nat inside			//configure for NAT inside
+
+	R2(config-if)#int g0/2
+	R2(config-if)#ip nat outside
+	R2(config-if)#int range g0/0-1
+	R2(config-if-range)#ip nat inside
+
+
+Step 2:
+For the first network diagram, we are going to set up static NAT translations for PC's 1 through 3. Remember, static is only a 1-to-1 translation so you will need equal external IP addresses for static NAT to work for all systems. Step 2 specifies we can use any available host address between 2 and 253 but in the real world you might only be leased one static IP address unless you can pay for more lines or inherit multiple static IP's. For the answer key, we will just use hosts 2-4. Feel free to use anything else
+
+Your command is going to be:
+	(config)#ip nat inside source static [internal IP] [external IP]
+
+	R1(config)#ip nat inside source static 10.0.0.2 203.0.113.2			//command for 1-to-1 static mapping of IP addresses
+	R1(config)#ip nat inside source static 192.168.0.2 203.0.113.3
+	R1(config)#ip nat inside source static 192.168.0.3 203.0.113.4
+
+	PC's1-3: ping 203.0.113.254							//all PC's should be able to ping ISP's g0/0 interface. If it doesn't, ping again then verify configurations
+
+	R1#show ip nat translations							//show the translations on the router.
+
+
+
+Step 3:
+As with step 2, we will use static NAT again for PC4. This time there is a reserved address that needs to be used which is 203.0.113.2
+
+	R2(config)#ip nat inside source static 10.0.1.2 203.0.113.2
+
+	PC4: ping 203.0.113.254
+
+	R2#show ip nat translations							//shows that PC4 has the inside local address of 10.0.1.2 and inside global address of 203.0.113.2
+
+
+Step 4:
+Now we will need to both:
+	-Configure a pool to serve as the NAT pool
+	-Set up a dynamic host range using a Access Control List
+
+If you have yet to use Access Control Lists (ACL's), they are a numbered (only extended ACL's can be named) list that provide a means to filter packets by allowing a user to permit or deny IP packets from crossing specified interfaces. For NAT, what we are specifically doing is "permitting" or leasing a range of host addresses the router can pick from on a "first come, first serve" basis. The command for the pool is:
+		(config)#ip nat pool [Pool Name] [beginning IP range] [end IP range] netmask [subnet mask]
+
+	The ACL command is:
+		(config)#access-list [number] [permit|deny] [IP network] [subnet mask wildcard]
+
+	The dynamic NAT command is:
+		(config)#ip nat inside source list [ACL list] pool [NAT pool name]
+
+
+
+	R2(config)#ip nat pool Cisco 203.0.113.1 203.0.113.254 netmask 255.255.255.0	//create the pool range to be leased
+	R2(config)#access-list 1 permit 192.168.1.0 0.0.0.255				//access list "permitting" the allowed IP addresses to be used (don't forget, ACLs use wildcards)
+	R2(config)#ip nat inside source list 1 pool Cisco				//bind ACL 1 to the Cisco NAT pool as a dynamic NAT translation
+
+
+Step 5:
+
+	R2#debug ip nat									//shows live information of NAT translations (keep this window visible when pinging from PC5 or 6)
+	IP NAT debugging is on
+	PC5: ping 203.0.113.254								//be able to watch NAT info real-time on R2's window
+
+
+Step 6:
+
+	R3(config)#int g0/1
+	R3(config-if)#ip nat outside
+	R3(config-if)#int g0/2
+	R3(config-if)#ip nat inside
+
+
+Step 7:
+Notice that the ISP's network range has diminished greatly from the /24 subnet to the p2p /30 subnet. Even with dynamic or static NAT, only one endhost will be able to reach out! We have to use PAT or also known as NAT overload. First, we will create the ACL and then bind it with the NAT overload
+
+	R3(config)#access-list 1 permit 192.168.2.0 0.0.0.255
+	R3(config)#ip nat inside source list 1 interface g0/0 overload			//keyword here is "overload"...don't forget that whenever you have a PAT configuration!
+
+
+Step 8:
+
+	PC's7-9: ping 203.0.113.2
+	R3#sh ip nat translations 							//you will see :[numbers] at the end of the IP address. This is using ports to direct traffic.
+
+
+
+Probably the hardest part about NAT on the CCNA exam is the wording itself and what the exam is specifically asking you to do. An example would be "translate all of these source addresses using dynamic NAT" and what it would be asking is all source addresses from that connection (so like subnet 10.0.0.0/24, 192.168.0.0/24 and an end host 172.0.0.1/32) to be translated. Be sure to read the exam questions carefully!
+
+Don't forget to "copy run start" to save all of your configurations.
+

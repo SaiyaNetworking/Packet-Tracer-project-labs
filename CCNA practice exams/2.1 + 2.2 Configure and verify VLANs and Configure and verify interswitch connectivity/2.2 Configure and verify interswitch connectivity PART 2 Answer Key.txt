@@ -1,0 +1,288 @@
+
+2.1 Configure and verify VLANs (normal range) spanning multiple switches PART 2
+	2.1.a Access ports (data and voice)
+	2.1.b Default VLAN
+	2.1.c InterVLAN connectivity*
+2.2 Configure and verify interswitch connectivity
+	2.2.a Trunk ports
+	2.2.b 802.1Q** (see endnotes)
+	2.2.c Native VLAN
+
+
+This lab will follow through with exam topics 2.1.a and 2.1.b as did the previous lab but we will be introducing exam topics 2.1.c and 2.2 as well. This following lab is going to represent the framework of some future labs to build both familiarity and build upon previous knowledge.
+
+*Note: we will not be using Router on a Stick (RoaS) largely because I believe it's no longer on the CCNA as with the Routing Information Protocol (RIP). I can be wrong so if you wish to learn or understand how RoaS works, this article from Cisco should be referenced: https://www.ciscopress.com/articles/article.asp?p=3089357&seqNum=5
+
+
+Step 1:
+
+	MLS(config)#vlan 10			//Adds VLAN 10, 20, 30 and 40 to the switch
+	MLS(config-vlan)#vlan 20
+	MLS(config-vlan)#vlan 30
+	MLS(config-vlan)#vlan 40
+	MLS(config-vlan)#vlan 199
+
+	MLS(config)#do show vlan brief		//shows the VLANs associated to the switch
+
+	SW1(config)#vlan 10
+	SW1(config-vlan)#vlan 40
+	SW1(config-vlan)#vlan 199
+
+	SW1(config)#do show vlan brief
+
+	SW2(config)#vlan 20
+	SW2(config-vlan)#vlan 40
+	SW2(config-vlan)#vlan 199
+
+	SW2(config)#do show vlan brief
+
+	SW3(config)#vlan 30
+	SW3(config-vlan)#vlan 40
+	SW3(config-vlan)#vlan 199
+
+	SW3(config)#do show vlan brief
+
+	SW4(config)#vlan 20
+	SW4(config-vlan)#vlan 30
+	SW4(config-vlan)#vlan 40
+	SW4(config-vlan)#vlan 199
+
+	SW4(config)#do show vlan brief
+
+
+Step 2:
+
+	MLS(config)#vlan 10			//enters into the VLAN subdomain
+	MLS(config-vlan)#name Administration	//names VLAN 10 "Administration"
+	MLS(config-vlan)#vlan 20		//enters into the next VLAN subdomain even in config-vlan mode
+	MLS(config-vlan)#name Sales
+	MLS(config-vlan)#vlan 30
+	MLS(config-vlan)#name Engineering
+	MLS(config-vlan)#vlan 40
+	MLS(config-vlan)#name Phone
+
+	MLS(config)#do show vlan brief		//shows the VLAN with the associated name
+
+	SW1(config)#vlan 10
+	SW1(config-vlan)#name Administration
+	SW1(config-vlan)#vlan 40
+	SW1(config-vlan)#name Phone
+
+	SW1(config)#do show vlan brief
+
+	SW2(config)#vlan 20
+	SW2(config-vlan)#name Sales
+	SW2(config-vlan)#vlan 40
+	SW2(config-vlan)#name Phone
+
+	SW2(config)#do show vlan brief
+
+	SW3(config)#vlan 30
+	SW3(config-vlan)#name Engineering
+	SW3(config-vlan)#vlan 40
+	SW3(config-vlan)#name Phone
+
+	SW3(config)#do show vlan brief
+
+	SW4(config)#vlan 20
+	SW4(config-vlan)#name Sales
+	SW4(config)#vlan 30
+	SW4(config-vlan)#name Engineering
+	SW4(config-vlan)#vlan 40
+	SW4(config-vlan)#name Phone
+
+	SW4(config)#do show vlan brief
+
+Step 3:
+Remember, access ports only allow one vlan per port. Start with the outer, layer 2 switches
+
+	SW1(config)#int f0/1				//access the interface the vlan will be on
+	SW1(config-if)#switchport mode access		//turn the port into an access port
+	SW1(config-if)#switchport access vlan 10	//tells the port which vlan to be associate with
+
+	SW1(config)#do show vlan brief			//verify the appropriate port is on the correct vlan
+
+	SW2(config)#int f0/1
+	SW2(config-if)#switchport mode access
+	SW2(config-if)#switchport access vlan 20
+	SW2(config)#int f0/2				//remember, there are two interfaces being used!
+	SW2(config-if)#switchport mode access
+	SW2(config-if)#switchport access vlan 20
+
+	SW2(config)#do show vlan brief
+
+	SW3(config)#int f0/1
+	SW3(config-if)#switchport mode access
+	SW3(config-if)#switchport access vlan 30
+
+	SW3(config)#do show vlan brief
+
+	SW4(config)#int f0/1
+	SW4(config-if)#switchport mode access
+	SW4(config-if)#switchport access vlan 20
+	SW4(config)#int f0/2				//a second interface, but a different VLAN. Be mindful to check your configurations!
+	SW4(config-if)#switchport mode access
+	SW4(config-if)#switchport access vlan 30
+
+	SW4(config)#do show vlan brief
+
+
+Step 4:
+There is an exception to the one vlan per access port, and that's the "switchport voice vlan [vlan number]" command
+
+	SW1(config)#int f0/1
+	SW1(config-if)#switchport voice vlan 40		//CLI command to allow VOIP vlans through the same access port
+
+	SW1(config)#do show vlan brief			//Verify the port is on the VLAN 40 Voice category
+
+	SW2(config)#int f0/1				//Don't forget to double check your diagram. There's only one phone here
+	SW2(config-if)#switchport voice vlan 40
+
+	SW2(config)#do show vlan brief
+
+	SW3(config)#int f0/1
+	SW3(config-if)#switchport voice vlan 40
+
+	SW3(config)#do show vlan brief
+
+	SW4(config)#int f0/1
+	SW4(config-if)#switchport voice vlan 40
+	SW4(config)#int f0/2
+	SW4(config-if)#switchport voice vlan 40
+
+	SW4(config)#do show vlan brief
+
+
+Step 5:
+Remember from your studies that trunk ports are links that carry multiple VLANs over a physical interface as opposed to an access port which only will carry their designated VLAN and the VOIP VLAN. Trunk ports will tag any VLAN that isn't the default/native VLAN (more on that later.) Start with the outer switches first.
+
+	SW1(config)#int g0/1					//select the interface that will transport multiple vlans
+	SW1(config-if)#switchport mode trunk			//sets the interface to a trunk link
+	SW1(config-if)#switchport trunk allowed vlan 10,40	//vlans allowed on said trunk link
+
+	SW1#show interfaces trunk				//show trunk associations on interfaces
+
+	SW2(config)#int g0/1
+	SW2(config-if)#switchport mode trunk
+	SW2(config-if)#switchport trunk allowed vlan 20,40
+
+	SW2#show interfaces trunk
+
+	SW3(config)#int g0/1
+	SW3(config-if)#switchport mode trunk
+	SW3(config-if)#switchport trunk allowed vlan 30,40
+
+	SW3#show interfaces trunk
+
+	SW4(config)#int g0/1
+	SW4(config-if)#switchport mode trunk
+	SW4(config-if)#switchport trunk allowed vlan 20,30,40	//three different vlans here, but they all need to be trunked
+
+	SW4#show interfaces trunk
+
+	MLS(config)#int g1/0/1					//interfaces should always have matching trunks
+	MLS(config-if)#switchport mode trunk
+	MLS(config-if)#switchport trunk allowed vlan 10,40
+
+	MLS(config)#int g1/0/2
+	MLS(config-if)#switchport mode trunk
+	MLS(config-if)#switchport trunk allowed vlan 20,40
+
+	MLS(config)#int g1/0/3
+	MLS(config-if)#switchport mode trunk
+	MLS(config-if)#switchport trunk allowed vlan 30,40
+
+	MLS(config)#int g1/0/4
+	MLS(config-if)#switchport mode trunk
+	MLS(config-if)#switchport trunk allowed vlan 20,30,40
+
+	MLS#show interfaces trunk
+
+
+Step 6:
+
+	Sales3 ping 10.0.1.2				//Sales3 cannot reach Admin PC. Admin PC is on a completely different VLAN
+	Sales3 ping 10.0.2.2				//Sales3 can reach Sales1 and Sales2 PC because it's both on the same VLAN
+	Sales3 ping 10.0.2.3
+	Eng1 ping 10.0.3.3				//Eng1 should be able to reach Eng2 on a different switch but no one else.
+
+
+Step 7:
+Native VLANs are used to send untagged traffic over a specific vlan (199 for our example.) This is for a couple reasons:
+	1) Primarily to move the untagged and management traffic off of the default VLAN 1. This is to improve security
+	2) Compatibility issues. Some end devices cannot process tagged traffic on their NIC interfaces and require untagged traffic.
+
+	MLS(config)#int g1/0/1
+	MLS(config-if)#switchport trunk native vlan 199		//replaces the default vlan with a native vlan
+	MLS(config)#int g1/0/2
+	MLS(config-if)#switchport trunk native vlan 199
+	MLS(config)#int g1/0/3
+	MLS(config-if)#switchport trunk native vlan 199
+	MLS(config)#int g1/0/4
+	MLS(config-if)#switchport trunk native vlan 199
+
+	MLS(config)#do show interfaces trunk			//you should see in the last column for the first category "Native vlan 199"
+
+	SW1(config)#int g0/1
+	SW1(config-if)#switchport trunk native vlan 199
+
+	SW2(config)#int g0/1
+	SW2(config-if)#switchport trunk native vlan 199
+
+	SW3(config)#int g0/1
+	SW3(config-if)#switchport trunk native vlan 199
+
+	SW4(config)#int g0/1
+	SW4(config-if)#switchport trunk native vlan 199
+
+	Sales3 ping 10.0.2.2					//Sales3 should still be able to reach Sales1 and 2
+	Sales3 ping 10.0.2.3
+
+
+Step 8:
+Layer 3 switches have the ability to, well...perform routing protocols. You can apply this to both the physical interfaces (interfaces g1/0/1 or f0/1) or the VLANs themselves (VLAN 10, VLAN 20, etc.)
+
+Step 8a:
+	MLS(config)#interface vlan 10				//access the vlan interface submenu
+	MLS(config-if)#ip address 10.0.1.1 255.255.255.0	//assign IP gateway address to vlan
+	MLS(config)#interface vlan 20
+	MLS(config-if)#ip address 10.0.2.1 255.255.255.0
+	MLS(config)#interface vlan 30
+	MLS(config-if)#ip address 10.0.3.1 255.255.255.0
+	MLS(config)#interface vlan 40
+	MLS(config-if)#ip address 10.0.4.1 255.255.255.0
+
+MLS(config)#do show ip interface brief | exclude down	//verify the correct IP addresses are assigned to the VLAN interfaces
+(Note: the " | exclude down" suffix will remove all of the unassigned ports from the output. This will make reading your configurations easier and can be used on the exam as well.)
+
+Step 8b:
+	MLS(config)#ip routing					//allows the layer 3 switch to perform routing functions
+
+
+Step 9: 
+
+	Admin PC ping Switch Virtual Interfaces (SVI's):	//these are the IP addresses you added to the vlan on the MLS
+		ping 10.0.1.1
+		ping 10.0.2.1
+		ping 10.0.3.1
+		ping 10.0.4.1
+
+	Admin PC ping 						//ping the PC's to verify you have connectivity
+		ping 10.0.2.2
+		ping 10.0.2.3
+		ping 10.0.2.4
+		ping 10.0.3.2
+		ping 10.0.3.3
+
+
+
+** In packet tracer, the command "switchport trunk encapsulation dot1q" is either unsupported or automatically on by default. Do be aware that it still can be used in the exam lab. If you are attempting set up a trunk port and the lab is rejecting your command, it needs to be set up in encapsulation mode using the command:
+	MLS(config-if)#switchport trunk encapsulation dot1q
+
+Don't forget to run the command "copy run start" to save any configuration changes. Cisco will count your score as a zero in your labs if you don't save this way!
+
+
+Congratulations on completing this lab and a huge milestone in your CCNA journey! One of the meatier sections of this certification are VLAN configurations for both L2 segmentation and L3 interconnectivity. I would definitely take a break to be able to recollect and absorb the volume of information you had to implement.
+
+
+

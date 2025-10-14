@@ -1,0 +1,118 @@
+ACL's read me first!
+
+5.6 Configure and verify access control lists
+
+For those familiar with programming, ACL's might be familiar ground. For those unfamiliar with programming, ACL's might be more of a daunting task (it was for me.) The important part is to *learn how the context works!* When you understand what the context is, then ACL's become substantially easier to configure.
+
+There are largely three types of ACL's you can configure for the CCNA:
+	(Simple) Access Control lists: ACLs that have simple permit/deny functions based only on IP addresses.
+	Standard Access Control lists: ACL's that can be named and modified within the ACL itself but otherwise share the same simplicity as a simple ACL
+	Extended Access Control lists: ACL's that can permit/deny a large range of conditions and protocols based off of ports. Can be named or numbered.
+
+For simple ACLs for the CCNA, we would almost exclusively use them for references when setting up NAT rules because a standard and extended ACL can be both a lot more granular in control and allow other protocols to be allowed/denied while still being able to be edited for future revisions.
+
+The syntax or logic an ACL takes is a "if-then-else" logic. I.e. IF the packet is 10.0.0.1, THEN I will deny...ELSE IF the packet is 10.0.0.2, THEN I will permit...ELSE I will deny. A good analogy would be a bouncer at a club that has a basic "IF the customer looks like this, THEN I will deny ELSE IF the customer looks like this, THEN I will permit" ACL's also process their logic from a top to bottom process, so if your ACL has a "permit any" IP address at the top and then a couple denies afterwards, the ACL will always process the permit any IP addresses and ignore the deny entries under. This is why you always want your most specific entries first and then your least specific blanket permit/deny entries near the very bottom. For any ACL that needs to deal with a protocol (i.e. deny telnet from...) you will always use an extended ACL.
+
+For a simple ACL, the commands are either:
+	(config)#access-list [1-99, 100-199] permit|deny [IP Address] [wildcard netmask]	//This is to permit/deny a network address
+	(config)#access-list [1-99, 100-199] permit|deny [host] [host IP address]		//This is to permit/deny a specific host in the network
+	(config)#access-list [1-99, 100-199] permit|deny any					//This is to permit/deny any IP address through
+
+For a named ACL, you will create the entry first:
+	(config)#ip access-list standard [name | 1-99]						//create the ACL as a configurable subdomain
+This will access the submenu of the ACL itself which you can configure from:
+	(config-std-nacl)#remark [line comment]							//Creates a description for your ACL (ex: "deny Bob from Accounting")
+	(config-std-nacl)#permit|deny [IP Address] [wildcard netmask]				//This is to permit/deny a network address
+	(config-std-nacl)#permit|deny [host] [host IP address]					//This is to permit/deny a specific host in the network
+	(config-std-nacl)#permit|deny any							//This is to permit/deny any IP address through
+	(config-std-nacl)#no									//removes an entry from the ACL
+
+
+~~Extended ACLS~~
+
+For an extended ACL, it will be set up like a named ACL but will allow more option in the submenu:
+	(config)#ip access-list extended [name | 100-199]					//create an extended ACL
+Extended ACL's share the same basic IP permit/deny controls as the previous ACL's:
+	(config-ext-nacl)#remark [line comment]
+	(config-ext-nacl)#permit|deny [source IP Address] [wildcard netmask]
+	(config-ext-nacl)#permit|deny [source host] [source host IP address]
+	(config-ext-nacl)#permit|deny any
+	(config-ext-nacl)#no
+
+From here on though, you can also allow and deny protocols based off of port numbers:
+	(config-ext-nacl)#permit|deny [protocol] [Source IP Address] [source wildcard netmask] [destination address] [destination wildcard netmask] [eq | gt | lt | neq | range] [port number]
+
+Lets break this down:
+	protocol: The specific routing protocols, these usually encompass (for the CCNA)
+			icmp - pinging protocols
+			tcp - protocols like telnet, ssh, and web browsing with HTTP/HTTPS
+			udp - protocols like DHCP, DNS, SNMP and TFTP
+
+	source: The specific source IP. This can be a network range (i.e. 10.0.0.0/24), a host IP (i.e 10.0.0.1), or just any IP
+	source wildcard mask: the wildcard mask of the source address. Unneeded for host specifications.
+	destination: The specific destination IP you are controlling access to. As with the source, it can either be a network range or a host
+	destination wildcard mask: the wildcard mask of the destination address. Unneeded for host specifications.
+	port number (eq/gt/lt/neq/range): This is a flag for the ports you want to control access to:
+		eq: Equal to the port number
+		gt: Greater than the port number
+		lt: Less than the port number
+		neq: Anything that isn't the port number
+		range: a range of port numbers
+	port number: The specific protocol you are blocking. Examples (for TCP control) would be:
+			53: DNS
+			21: FTP
+			110: POP3
+			25: SMTP
+			22: SSH
+			23: Telnet
+			80: HTTP
+			443: HTTPS
+
+Note: The syntax should always be protocol -> source -> destination -> Port number -> Port protocol. An example like:
+	R1(config-ext-nacl)#permit tcp 10.0.0.0 0.0.0.255 10.0.1.0 0.0.0.255 eq 23
+			(permit | protocol | source IP | source wildcard | dest. IP | dest. wildcard | port number | port protocol)
+Will work fine in allowing Telnet (23) access from source IP 10.0.0.0 to destination IP 10.0.1.0 
+
+This will not work:
+	R1(config-ext-nacl)#permit tcp 10.0.0.0 0.0.0.255 eq 23 10.0.1.0 0.0.0.255
+ 			(permit | protocol | source IP | source wildcard | port number | port protocol | dest. IP | dest. wildcard )
+Cisco's IOS won't be able to understand the logic and will (probably) just do a blanket allow/deny statement.
+
+With that out of the way, these are other common extended ACL commands:
+1	(config-ext-nacl)#permit|deny [protocol] [source IP] [source wildcard] [destination IP] [destination wildcard] [eq | gt | lt | neq | range] [port number]
+2	(config-ext-nacl)#permit|deny [protocol] host [source host IP] host [destination host IP] [eq | gt | lt | neq | range] [port number]
+3	(config-ext-nacl)#permit|deny [protocol] host [source host IP] [destination IP] [destination wildcard] [eq | gt | lt | neq | range] [port number]
+4	(config-ext-nacl)#permit|deny [protocol] [source IP] [source wildcard] host [destination host IP] [eq | gt | lt | neq | range] [port number]
+5	(config-ext-nacl)#permit|deny [protocol] any [destination IP] [destination wildcard] [eq | gt | lt | neq | range] [port number]
+6	(config-ext-nacl)#permit|deny [protocol] [source IP] [source wildcard] any [eq | gt | lt | neq | range] [port number]
+7	(config-ext-nacl)#permit|deny [protocol] any any [eq | gt | lt | neq | range] [port number]
+8	(config-ext-nacl)#permit|deny ip any any
+
+									1	//ACL to control traffic from different networks
+									2	//ACL to control traffic from a host IP to a host destination IP
+									3	//ACL to control traffic from a host IP to a destination network
+									4	//ACL to control traffic from a network IP to a destination host
+									5	//ACL to control traffic from any source address
+									6	//ACL to control traffic from a network to any destination
+									7	//ACL to control any traffic going anywhere
+									8	//ACL to implicitly permit all or deny all traffic*
+
+*Note: Standard and extended ACL's automatically deny all unspecified traffic unless specified. If you want people to still talk past the device after setting up an ACL, you should have the "permit ip any any" at the end of the list.
+
+
+After you have configured your ACL's, two things you will need to know:
+
+1) Simple and standard ACL's should be closest to the destination to allow/drop packets
+2) Extended ACL's should be closest to the source as possible to reduce unnecessary bandwidth usage
+
+ACL's need to be applied to interfaces as well from an inbound or outbound rule:
+	Inbound: These are packets traveling inside of an interface
+	Outbound: These are packets traveling outside of an interface
+
+ACL's on a SVI are inversed:
+	Inbound: These are packets from the clients in the vlan.
+	Outbound: These are packets going to clients in the vlan.
+
+
+So, from an initial point of view, ACL's can be extremely complicated! After reading this and taking time to practice, ACL's will actually feel like second nature to you and feel a lot more simplified. Definitely practice on your ACL's!
+

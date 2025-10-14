@@ -1,0 +1,140 @@
+
+5.7 Configure and verify Layer 2 security features (DHCP snooping, dynamic ARP inspection, and port security)
+
+
+I actually don't have much to add to this lab section. Security practices are best practices and things like:
+	-DHCP Snooping will prevent rogue DHCP servers on your network. Think of shadow IT and rogue routers leasing to untrusted clients or even serve as a backdoor to the network.
+	-Dynamic ARP Inspection (DAI) will prevent ARP spoofing and prevent traffic being misdirected to the attacker's end host.
+	-Port Security is a more granular security that allows you to configure MAC limits, static or dynamic allowable MAC addresses, and what the port will do when violations occur.
+Naturally, all of these should be enabled by the engineer or administrator to limit your attack vector or even just network outages. A quick example of both would be a rogue router leasing out IP addresses and causes an IP conflict with the server, bringing down access for everyone. Whoops.
+
+One of the easiest things that will help you remember where these commands are used is where it's enabled:
+	-DHCP Snooping is enabled globally and applied globally. Interfaces can be enabled as trusted
+	-DAI is tied in with DHCP snooping globally and applied globally. Interfaces can be enabled as trusted
+	-Port Security is enabled only by interface.
+So you can think of:
+	DHCP snooping = (config), trusted = (config-if)
+	DAI           = (config), trusted = (config-if)
+	Port Security = (config-if)
+
+Note: trusted interfaces should only be uplink ports leading to the backbone of your network, not on the end-user sides
+
+
+Step 1:
+We need to enable DHCP snooping globally on the access switches since these are the only switches with connectivity to end-users:
+
+	SW1-4(config)#ip dhcp snooping								//enable DHCP Snooping globally
+
+Next we need to apply it to the proper interfaces which are the vlan's assigned:
+
+	SW1(config)#ip dhcp snooping vlan 10,40							//apply DHCP snooping to the vlan interfaces
+	SW2(config)#ip dhcp snooping vlan 20,40
+	SW3(config)#ip dhcp snooping vlan 30,40
+	SW4(config)#ip dhcp snooping vlan 20,30,40
+
+And then we need to rate-limit the DHCP requests (Cisco recommends no greater than 100 packets a second)
+
+	SW1-4(config)#int g0/0									//need to select the interface to be rate limited to
+	SW1-4(config-if)#ip dhcp snooping limit rate 100
+
+Last, we need to configure which ports are trusted ports which is the backbone of our network:
+
+	SW1-4(config)#int g0/1									//need to select the interface to be trusted
+	SW1-4(config-if)#ip dhcp snooping trust 						//we are trusting the uplink
+
+
+Step 2:
+As with DHCP Snooping, DAI will be enabled globally and on the appropriate interfaces, which will be the vlans. We will also need to inspect the source MAC addresses and trust the uplink ports. We will first set up inspection on the vlan interfaces and enable source MAC inspection:
+
+	SW1(config)#ip arp inspection vlan 10,40						//arp inspection just needs to be applied to the interfaces globally
+	SW1(config)#ip arp inspection validate src-mac						//inspect source mac addresses
+	
+	SW2(config)#ip arp inspection vlan 20,40
+	SW2(config)#ip arp inspection validate src-mac
+
+	SW3(config)#ip arp inspection vlan 30,40
+	SW3(config)#ip arp inspection validate src-mac
+
+	SW3(config)#ip arp inspection vlan 20,30,40
+	SW3(config)#ip arp inspection validate src-mac
+
+
+Now we need to configure the uplinks to be trusted ports:
+
+	SW1-4(config)#int g0/1									//need to select the interface to be trusted (the uplink)
+	SW1(config-if)#ip arp inspection trust
+
+
+Step 3:
+Port security is always on the interface with the exception of adding static mac addresses to the mac address table in global (outside the scope of the CCNA) and err-disabled recovery but we will save that for last.
+
+First, we need to actually enable Port Security:
+
+	SW1(config)#int f0/1									//need to select the interface
+	SW1(config-if)#switchport port-security							//enable port security
+
+	SW2(config)#int range f0/1-2
+	SW2(config-if)#switchport port-security
+
+	SW3(config)#int f0/1
+	SW3(config-if)#switchport port-security
+
+	SW4(config)#int range f0/1-2
+	SW4(config-if)#switchport port-security
+
+Next, we need to add the maximum allowable mac addresses to the ports. Some will only have one, some will have two (the voip phones.):
+
+	SW1(config)#int f0/1
+	SW1(config-if)#switchport port-security maximum 2					//this interface has two mac addresses, the PC and the phone
+
+	SW2(config)#int f0/1
+	SW2(config-if)#switchport port-security maximum 2
+	SW2(config)#int f0/2
+	SW2(config-if)#switchport port-security maximum 1					//this interface only has one address
+
+	SW3(config)#int f0/1
+	SW3(config-if)#switchport port-security maximum 2
+
+	SW4(config)#int f0/1
+	SW4(config-if)#switchport port-security maximum 2
+	SW4(config)#int f0/2
+	SW4(config-if)#switchport port-security maximum 2
+
+
+We now need to set up dynamic mac address learning (no expiration):
+
+	SW1-4(config-if)#switchport port-security mac-address sticky 				//learn mac addresses dynamically
+
+Now we need to assign the proper port-violation modes. There are three types:
+	shutdown: Shuts the interface down into an err-disabled state and creates a log entry.
+	restrict: Keeps the interface up while dropping the non-allowed packets. Creates a log entry.
+	protect: Keeps the interface up while dropping the non-allowed packets. Doesn't create a log entry.
+
+
+The instructions call for:
+	1) That only admin should shut down
+	2) That other ports should stay up and not log a violation.
+
+	SW1(config)#int f0/1
+	SW1(config-if)#switchport port-security violation restrict				//shuts the port down if a violation occurs
+
+	SW1(config)#int range f0/1-2
+	SW1(config-if)#switchport port-security violation protect				//protects the port without sending error logs
+
+	SW3(config)#int f0/1
+	SW3(config-if)#switchport port-security violation protect
+
+	SW4(config)#int range f0/1-2
+	SW4(config-if)#switchport port-security violation protect
+
+Note: The CCNA exam might have you configure an err-disable recovery command (unavailable on Packet Tracer). This is the one of the port security commands that can be configured globally. The commands are:
+	(config)#errdisable recovery cause psecure-violation
+	(config)#errdisable recovery interval [seconds]						//300 seconds or five minutes is the default
+
+
+
+
+And that's it! A very straightforward lab as long as you know which commands are applied where. Don't forget to "copy run start" to save any configurations made.
+
+
+

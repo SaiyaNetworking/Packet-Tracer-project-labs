@@ -1,0 +1,212 @@
+
+
+5.6 Configure and verify access control lists
+
+
+I actually ended up using the framework from one of Neil Anderson's labs because his setup allowed the opportunity to apply and test out a bunch of different ACL's
+
+Some of these ACL's will have multiple entries. Please take the time to think through each and every step. ACL's require following a logical train of thought from the top-down and each entry should be given a lot of thought as to what you actually want that ACL entry to do. An example is a request that would say "Deny ICMP from ISP to all private IP's." Here's what we can deduct and put together:
+	1) It's a protocol as ICMP is the ping command so we know we need an EXTENDED ACL.
+	2) We need to block ping requests to *all* private IP ranges. RFC 1918 tells us those three addresses are:
+		10.0.0.0/8
+		172.16.0.0/12
+		192.168.0.0/16
+	3) We need to apply it to the interface coming INBOUND from the router of the ISP.
+
+So a configuration would look like this:
+	R1(config)#ip access-list extended DENY_ICMP				//Named extended ACL
+	R1(config-ext-nacl)#deny icmp any 10.0.0.0 0.255.255.255		//deny pings to 10.0.0.0/8 networks
+	R1(config-ext-nacl)#deny icmp any 172.16.0.0 0.15.255.255		//deny pings to 172.16.0.0/12 networks (notice the inverted wildmask for /12!)
+	R1(config-ext-nacl)#deny icmp any 192.168.0.0 0.0.255.255		//deny pings to 192.168.0.0/16 networks
+	R1(config-ext-nacl)#permit ip any any					//allow other protocols through. Remember, ACL's have an explicit deny by default!
+
+	R1(config-ext-nacl)#do show ip access-lists				//verify your ACL entries
+
+	R1(config)#int g0/0							//select the interface to bind the ACL to
+	R1(config-if)#ip access-group DENY_ICMP in				//we want to deny packets coming in from the ISP
+
+
+
+That would be an example of an extended ACL but not applicable to our lab. Step one asks for all of the private ranges in the topology, not all private addresses period. Here's what we need to know:
+
+	ISP has the ability to ping all internal networks.
+	ISP has the ability to remotely login to R1
+	PC1 and PC2 have the ability to telnet to R1
+	PC1 and PC2 have the ability to access the server via web browser
+	PC1 and PC2 can ping Admin
+	Using the least amount of named ACL's and entries on R1:
+
+	1) Deny ICMP from ISP to private IP's within the diagram
+	2) Deny Telnet to R1 from ISP
+	3) Implicit deny PC2 outside access to ISP
+	4) Deny Telnet access to R1 from the 10.0.0.0/25 network
+	5) Deny ICMP to Admin from 10.0.0.0/25 but allow reply pings
+	6) Deny HTTP and HTTPS access to the server from 10.0.0.0/25 network 
+	7) Allow FTP access to the server from  the 10.0.0.0/25 network
+	8) Allow all other traffic
+
+	Hint: You will need more than 1 but less than 5 ACL lists
+	You will have both inbound and outbound rules
+
+
+So we know we need to:
+	1) Deny pings and Telnet from the ISP but allow reply pings. This is traffic inbound from the ISP to R1's g0/0 interface
+	2) Completely deny only PC2 from outside access. So PC2 should not be able to interact with the ISP
+	3) Deny PC1 and PC2 the ability to telnet to R1
+	4) Deny PC1 and PC2 the ability to ping to AdminPC but still allow reply pings and access to the server
+	5) Deny PC1 and PC2 the ability to access the server's web but allow FTP
+
+
+We can break these down into a few ACL's within the constraints of R1's interfaces
+
+	First ACL should be to deny pings but allow ping replies and deny Telnet to the inbound interface of R1's g0/0
+	Second ACL should be an implicit deny to PC2 on the outbound interface of R1's g0/0 while allowing other PC's to ping the ISP
+	Third ACL should block Telnet access to R1 from PC1 and PC2 on the inbound interface of R1's 
+	Fourth ACL should block ICMP's to the Admin PC, deny HTTP and HTTPS to the server, but still allow FTP
+
+All of these ACL's with the exception of the second ACL can be extended named ACL's, but the instructions stated to use all named ACL's:
+
+
+~~FIRST ACL~~
+First ACL we will name DENY_INBOUND (you can name it whatever you like. The CCNA exam might tell you to use a specific name, though.)
+
+	R1(config)#ip access-list extended DENY_INBOUND
+	R1(config-ext-nacl)#deny icmp any 10.0.0.0 0.0.0.127 echo		//we deny "any" because the IP address from the ISP is unknown. Also be mindful of the /25 wildcard!
+	R1(config-ext-nacl)#deny icmp any 192.168.0.0 0.0.255.255 echo		//deny access to both the 192.168.0.0/24 network and R1's loopback
+	R1(config-ext-nacl)#deny tcp any any eq telnet				//deny telnet (tcp protocol) is "any any" since you have the loopback and external global IP's
+	R1(config-ext-nacl)#permit ip any any					//permit non-specified traffic because we don't want to block all ingress traffic.
+
+	R1(config)#int g0/0							//interface we want to control traffic
+	R1(config-if)#ip access-group DENY_INBOUND in				//we are controlling traffic inbound or "coming in"
+
+	R1#show ip access-lists							//see your access lists
+
+Now we need to verify the ISP cannot ping any internal networks nor telnet into R1:
+
+
+	ISP#ping 10.0.0.1							//you should get the 0/5 success rate. We are pinging the gateways because that's the access point for end hosts
+		Type escape sequence to abort.
+		Sending 5, 100-byte ICMP Echos to 10.0.0.1, timeout is 2 seconds:
+		UUUUU
+		Success rate is 0 percent (0/5)					//ISP can no longer ping the 10.0.0.0/25 network
+	ISP#ping 192.168.0.1
+	ISP#ping 192.168.1.1
+	ISP#telnet 203.0.113.2							//telnet to the external global is unsuccessful. The same thing will happen to the loopback interface
+		Trying 203.0.113.2 ...
+		% Connection timed out; remote host not responding
+
+
+~~SECOND ACL~~
+Now we need the second ACL to explicitly deny PC2 from going outbound to the ISP. We will call this ACL DENY_PC2
+
+	R1(config)#ip access-list extended DENY_PC2
+	R1(config-ext-nacl)#deny ip host 10.0.0.3 any			//use ip to deny all ip protocols and specifically the host to any destination address past the router
+	R1(config-ext-nacl)#permit ip any any				//don't forget this! Not including this means it also denies other end hosts that aren't just PC2!
+	
+	R1(config)#int g0/0						//we need int g0/0 because int g0/2 needs to allow ingress traffic from PC2 to the server
+	R1(config-if)#ip access-group DENY_PC2 out			//drop all packets going outbound from 
+
+Lets verify only PC2 cannot ping ISP (every other protocol will be dropped, too):
+
+	PC2: ping 203.0.113.1						//since we only blocked echo on ACL DENY_INBOUND, the ISP can still reply back but can't initiate pings
+		Pinging 203.0.113.1 with 32 bytes of data:
+
+		Reply from 10.0.0.1: Destination host unreachable.
+		Reply from 10.0.0.1: Destination host unreachable.
+		Reply from 10.0.0.1: Destination host unreachable.
+		Reply from 10.0.0.1: Destination host unreachable.
+
+	PC1: ping 203.0.113.1						//PC1 can still reach the ISP
+		Pinging 203.0.113.1 with 32 bytes of data:
+
+		Request timed out.
+		Reply from 203.0.113.1: bytes=32 time<1ms TTL=254
+		Reply from 203.0.113.1: bytes=32 time<1ms TTL=254
+		Reply from 203.0.113.1: bytes=32 time<1ms TTL=254
+
+
+~~THIRD ACL~~
+Now onto the third ACL where we deny both PC1 and PC2 Telnet from the 10.0.0.0/25 network to R1. If you were to telnet from PC1 to R1 currently, this is what will happen:
+
+	PC1: telnet 192.168.1.1
+	Trying 192.168.1.1 ...Open
+
+	User Access Verification
+
+	Username: admin
+	Password: 
+	R1#								//gained access :(
+
+Lets write out this ACL. Lets call it...DENY_TELNET
+
+	R1(config)#ip access-list extended DENY_TELNET
+	R1(config-ext-nacl)#deny tcp 10.0.0.0 0.0.0.127 any eq telnet	//telnet is TCP. Don't forget it's a /25 subnet so the wildcard needs to match!
+	R1(config-ext-nacl)#allow ip any any				//subnet still needs to reach the server and ISP!
+	
+	R1(config)#int g0/2						//inbound interface
+	R1(config-if)#ip access-group DENY_TELNET in			//deny inbound packets closest to the source when possible. We needed to save this interface for this ACL
+	
+Now try to telnet to R1 from either PC1 or PC2:
+
+	C:\>telnet 192.168.1.1
+	Trying 192.168.1.1 ...
+	% Connection timed out; remote host not responding		//success!!!
+
+
+~~ACL 4~~
+For our fourth ACL, we need to:
+	1) deny pings from the /25 subnet to the *admin only* but still allow pings from Admin to the PC's (server needs to be pingable!)
+	2) deny the ability to reach the server's webpages on both HTTP and HTTPS
+	3) allow FTP to the server
+	4) permit all other traffic from everywhere else				//sorry, redundant but whatever, need to throw FTP in there somewhere
+
+If you use PC1 or PC2, you can access the server's webpage by entering the 192.168.0.3 IP address into the browser. You can also ping Admin's PC on 192.168.0.2
+	PC1: URL http://192.168.0.3					//just pulls up the offline Cisco Packet Tracer web image
+	PC1: ping 192.168.0.2
+		Pinging 192.168.0.2 with 32 bytes of data:
+
+		Reply from 192.168.0.2: bytes=32 time<1ms TTL=127
+		Reply from 192.168.0.2: bytes=32 time<1ms TTL=127
+		Reply from 192.168.0.2: bytes=32 time<1ms TTL=127
+		Reply from 192.168.0.2: bytes=32 time<1ms TTL=127
+
+
+Lets write that ACL. We want to pick names that both tell you what they do and are easy to type. Lets call our fourth one ONLY_TCP:
+
+	R1(config)#ip access-list extended ONLY_TCP
+	R1(config-ext-nacl)#deny icmp 10.0.0.0 0.0.0.127 host 192.168.0.2 echo		//we still want the Admin to receive echo-replies
+	R1(config-ext-nacl)#deny tcp 10.0.0.0 0.0.0.127 host 192.168.0.3 eq www		//block server's HTTP port
+	R1(config-ext-nacl)#deny tcp 10.0.0.0 0.0.0.127 host 192.168.0.3 eq 443		//block server's HTTPS port
+	R1(config-ext-nacl)#permit tcp 10.0.0.0 0.0.0.127 host 192.168.0.3 eq ftp	//permit TCP to the host
+	R1(config-ext-nacl)#permit ip any any 						//permit all other traffic
+
+	R1(config)#int g0/1								//outbound interface
+	R1(config-if)#ip access-group ONLY_TCP out					//this is the only available interface left, so we will use this one
+
+Lets test out our ACL:
+
+	PC1: URL http://192.168.0.3							//should have a "Request Timeout" page.
+	PC1: URL https://192.168.0.3							//don't forget about HTTPS or port 443!
+	PC1: ping 192.168.0.2
+		Pinging 192.168.0.2 with 32 bytes of data:
+
+		Reply from 10.0.0.1: Destination host unreachable.
+		Reply from 10.0.0.1: Destination host unreachable.
+		Reply from 10.0.0.1: Destination host unreachable.
+		Reply from 10.0.0.1: Destination host unreachable.
+
+	PC1: Traffic Generator								//if you don't know how to use Traffic Generator, just ping the server.
+
+	Admin: ping 10.0.0.2
+		Pinging 10.0.0.2 with 32 bytes of data:
+
+		Reply from 10.0.0.2: bytes=32 time<1ms TTL=127
+		Reply from 10.0.0.2: bytes=32 time<1ms TTL=127
+		Reply from 10.0.0.2: bytes=32 time<1ms TTL=127
+		Reply from 10.0.0.2: bytes=32 time<1ms TTL=127
+
+
+
+And that's it! Good job on what is probably one of the hardest labs to do in this series! With this lab finished, you should be more or less ready for the exam labs! There are still the security options that need to be done for 5.7 in the CCNA but I would either take a break or recollect what you learned from this lab
+
+
