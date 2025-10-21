@@ -1,0 +1,230 @@
+This lab is actually based off an old issue I had roughly 10 years ago (~2015-16) when the facility I worked at wanted to transition from analogue bookwork to using video streaming curriculum. The scope at that point in time was:
+
+	1) Enough IoT devices (tablets were used) to support the current student population of 25.
+	2) Reliably stream video to said devices
+	3) Undefined budget
+
+While initially the scope appeared to be okay with the exception of an undefined budget, there was no professional evaluation. At best, there was only do-it-yourself (DIY) knowledge. This catapulted the project into problem after problem. What ultimately happened was the cheapest tablets were bought from Amazon along with a single consumer-grade "gaming" router.
+Why was this an issue? Because:
+	- The tablets themselves were inefficient. 
+		- Slow startup, small battery, poor specs. This lead to a lot of disruptions at the start of the school day from drained batteries and hanging startups.
+		- Huge inability to browse to the website portal with the video streaming even prior to network concerns from lack of RAM and CPU.
+	- The router wasn't sufficient for the scope.
+		- D-link consumer router for home use, not a campus environment.
+		- Ended up handling 25 devices on a half-duplex of an unknown IEEE of either 802.11g (54Mbps) or 802.11n (600Mbps).
+		- Material interference from placement in a closet.
+		- No other configurations made except "plug it in and hope for the best."
+
+For those with an IT background, especially in wireless, it was clear that this was a failed project even before it started. You had multiple points of failure across every step:
+	- School would be delayed because the tablets were drained completely or would take several minutes to start up.
+	- The tablets themselves struggled to open the browsers to stream the videos.
+	- If the tablets were able to reach the browser website, the router couldn't transmit fast enough.
+	- Largely limited to 2.4ghz due to the tablet limitations, distance from the router, and material interference.
+
+Ultimately what happened was:
+	- All of the tablets were scrapped because the tablets themselves had no resell value.
+	- An expediated order was placed for DVD replacements in lieu of streaming.
+	- Portable DVD players were purchased.
+	- The school year was delayed by a factor of a week or two.
+
+While good-intentioned and even a novel concept for the time, the execution of the plan itself was done very poorly and became a total loss to the school budget. If I were able to rewind 10 years into the past and apply the knowledge I have now, this would be a total revamp of the school's Wi-Fi infrastructure. Both with a proper scope and reasonable budget you would expect from a non-profit environment in 2014-15.
+
+	Note: This template is in Packet Tracer which is extremely limited in its Wireless Lan Center (WLC) emulation. Most options will be unavailable and connectivity setup will be left unconfigured. Any basic configurations will be posted at the very end.
+
+
+
+
+Going off of Cisco's Prepare Plan Design Implement Operate Optimize (PPDIOO) outline for Wireless deployments:
+
+Prepare:
+	An offsite survey can be omitted due to familiarity of the environment. An on-site survey should only be minimal due to the property being primarily an open interior with plasterboard and an exterior cinderblock design.
+
+	- A two-story, roughly 100' x 125' L-shaped property (30.48 meters x 38.1 meters. Meters will be abbreviated as "m" for here on out).
+	- School on the upper floor, 15-25 students and four staff.
+		- Require video-streaming for all students.
+		- Staff would still need to browse.
+		- Full coverage upstairs, coverage needed for offices around facility.
+	- Auditorium is roughly 75' x 50' x 25' (22.86m x 15.24m x 7.62m).
+		- Seats 250 max.
+		- Requested that Wi-Fi is allowed "as a free service."
+		- AP's shouldn't serve as a distraction to the service.
+	- Three offices are on opposite sides of the building on the ground floor.
+		- 2 offices can be covered by auditorium AP's if over the budget.
+			- Otherwise an AP should be used for both.
+		- 1 office is near the entrance but an AP can be placed in the lobby.
+	- Budget: Less than $5,000 USD (so a Unifi deployment).
+	- Allow scalability and give a general scope to compensate 50 students in total.
+
+Plan:
+	Network requirements:
+		- No hardware stack implemented, a new server room or cabin is required.
+		- Limited network infrastructure. There are a few CCTV cameras around the premises.
+		- Biggest concentration of users are during school days Mon-Thur.
+			- Spacing is approx. 1.5m from each student.
+		- Moderate to mild concentration of users during services (not expected to be watching videos during services).
+		- No major material interference that isn't drywall.
+		- A/V sound equipment in the auditorium, all wired on its separate, close circuit.
+		- Livestream is through Wi-Fi, recording is done through physical media independent of network.
+		- Wi-Fi 4 and 5 should be the standard, no legacy devices on school network.
+			- This is to prevent the "slowest client problem." 
+		- WPA2-PSK is the best option for in-house support.
+		- Scalability should be doubled up to 50 clients for the school environment.
+	Assess site readiness:
+		- Ethernet cables can be run alongside preexisting CCTV cables.
+		- All drop points are accessible from roof walkways.
+		- Mounting points will need to be installed.
+	Develop project plan:
+		- A secure network cabinet will need to be placed in the central office of the second floor.
+		- Cables can be run with CCTV cables for all AP's excluding the kitchen area for one of the offices.
+		- AP's only need to be placed so as to not be "a distraction" to auditorium events.
+
+Implement (develop): 
+	Hardware stack:
+		- We will at least require a controller and a managed, PoE switch:
+			- Unifi controller on a local server 300.00
+			- Unifi (US-24-250W) switch 350.00
+			- HPE MSR954 router (700-800.00)
+	We have chosen the MSR954 router because it is the most economical router that will supply our needs of data transfer needs. Ubiquiti did not have its own router lines until roughly 2019 with their dream machine product line.
+	Cabling:
+		- 1,000ft Plenum Cat5e shielded 500.00
+			- Labor runs would probably be 100.00 a run for a total of 7-8 drops.
+			- DIY would probably cost nothing since everything is accessible from the walkways.
+		- patch panel and keystone ports ~ 200.00
+	AP's:
+		- 12 Unifi (UAP-AC-PRO-US) AP's ~1,400.00
+			- We choose these for both economy and having a more "horizontal" reach when mounted on a wall.
+
+		** EXPENDED BUDGET: $3,550 **
+
+Implement (develop-AP's):
+	One of the more difficult aspects of this design is producing an acceptable streaming rate for school hours while staying within budget while using the (current) 802.11n standard. According to Cisco's high density design guide: https://www.cisco.com/c/en/us/td/docs/wireless/controller/technotes/8-7/b_wireless_high_client_density_design_guide.html
+I am looking at 1Mbps per on-demand streaming for standard definition or 2.5-5Mbps for high definition (HD) per client. With a total of 25 clients streaming:
+
+	- 25Mbps in total throughput for standard. 125Mbps for HD.
+	- For several hours a day Mon-Fri with nominal breaks.
+	- On what will most likely be on the 2.4ghz channels due to 2015 IoT limitations.
+
+Using some math since we don't have software like Ekahau, we know that:
+
+	- 2.4ghz actual throughput is 200 Mbps per AP (400 max throughput divided by half for actual).
+	- One client will use 2.5-5 Mbps on HD streaming (720p approx. 2.5-5 Mbps).
+	- One AP should theoretically handle 40 clients streaming HD. (throughput divided by client use).
+		- As to whether that's true or not is to be debated, but AP's are cheap so we will divide this by half for up to 20 users per AP.
+		- If 1/10 of the budget (~$375) can be expended to double the potential throughput to ensure quality streaming, it should be implemented.
+	- Four AP's should encompass Classroom 1 while two AP's should encompass Classroom 2.
+
+Following with Cisco's recommendation with the auditorium, Web-casual should be our consideration with a 500Kbps - 1Mbps maximum:
+
+	- 2.4ghz for a ~25(L)m x 20(W)m x 7.62(H)m space.
+	- Same actual throughput of 200 Mbps.
+	- One client can be expected to use 500 Kbps - 1 Mbps.
+	- Total expected users can be 10-25% of 200 clients.
+	- One AP should theoretically handle all 200 clients capped at 1 Mbps, but will not cover the entire auditorium.
+		- We will use two omnidirectional AP's mounted 5m on the walls in the auditorium for basic browsing and connectivity.
+		- Directional or an external antenna, while more efficient, would be more costly and unneeded for the requirements in the auditorium environment.
+
+With the lobby/office deployments:
+
+	- Main Office should have its own dedicated AP.
+	- Assistance Office should receive its Wi-Fi from the Lobby AP with an attenuation dB of 3 from the window/plasterboard wall.
+	- Convergence should have its own AP to prevent bleeding from Main Office's AP into the second story Classroom2.
+	- Staff Office #1 have its own dedicated AP on 5ghz due to microwave interference from the kitchen.
+	- Staff Office #2 should be compensated by Classroom #2's AP's.
+
+Implement (infrastructure):
+
+	- School:
+		Classroom 1:
+			- Shape the data rate to a minimum mandatory rate of 4-8 Mbps to reduce cell size to accommodate 7-9 clients and maintain throughput.
+
+		Classroom 2:
+			- Same data shaping. AP1 should be able to accommodate Staff Office #2.
+
+		- VLAN 20
+		- WPA2/PKS
+		- QoS of platinum or highest priority
+		- DHCP's leased from WLC controller (server)
+	- Guest:
+		Lobby:
+			- Will have the maximum amount of coverage while data shaping guest Wi-Fi to lowest priority over Assistant Office.
+
+		Convergence Room:
+			- Will allow roaming and fill a void. Isn't mandatory but will prevent dropped livestream videos from staff if they are roaming the facility.
+
+		Auditorium:
+			- Two AP's will both have the maximum amount of coverage.
+			- Should be considered lowest priority for data coverage since offices will have more privacy and streaming is not in the scope of the auditorium.
+			- AP's should be mounted 5 meters from the floor onto the wall. The ceiling height is approximately 20 meters and coverage can be lost.
+			- There can be a void in the middle of the auditorium as it is an aisle.
+
+		- VLAN 30
+		- No password
+		- Web Policy setup
+		- DHCP's leased from WLC controller (server)
+
+Implement (verify):
+
+	- The school owns all of the IoT devices and network connectivity can be verified by running tests.
+	- Auditorium connectivity can be verified by testing wireless strength throughout the seated portions.
+	- Lobby and office connectivity can be individually tested.
+
+Operate:
+
+	Cold Spares (Unifi doesn't do RMA's like Cisco does.):
+		- 2 AP's ~260.00
+		- 1 Switch 350.00
+		- This will push the budget to $4,160
+		- One more router can be purchased
+	- Dedicated staff member should oversee the IT management and apply ACLs accordingly.
+
+Optimize:
+
+	- AP cells should be increased/decreased based on quality of streaming. All of the infrastructure should accommodate a maximum output of 1gbps and should only be throttled by the ISP line which would probably be 100Mbps in 2015, still well-within the needs of the school streaming services. Colorado would also soon receive much higher internet speeds after the IX-Denver project in 2017, a part of IX-West. It is actually not uncommon to purchase affordable 1gbps speeds for residential use in 2025.
+	- Scalability, while not budgeted for, should be able to be optimized to a 100% of the student body count. This should only require a couple extra AP additions.
+
+
+
+Final thoughts:
+
+This would be a relatively large overhaul for a non-profit that has no previous network infrastructure. In my opinion, this would be the best setup that would allow both scalability without compromising quality of services, most notably the demand of streaming during school. I do not think the budget can be restricted any further because you are trying to shrink a traditional campus setup into something that can deliver the same quality while compromising on redundancy and introducing Single Points of Failure (SPF's). Any other compromises would severely affect quality of services and potentially lead to similar failures as was first experienced.
+
+If this was in 2025 instead of 2015, most hardware can be supplemented with current hardware exclusively in an Unifi ecosystem:
+
+	- Dream Machine Pro 380.00
+	- Pro 24 PoE (USW-Pro-24-POE (400W)) 700.00
+	- U6 Pro x8 1,280.00
+	- 1,000ft Plenum Cat5e shielded 500.00
+	- patch panel and keystone ports ~ 200.00
+
+	**EXPENDED BUDGET: 3,060.00 **
+
+A moderate savings over the 2015 budget by about $500. The drop in AP's is due to more advanced technology reducing the AP count in the classrooms. The server will need to be supplied if the client wishes to have on-site storage but is not needed for the routing. Cold spares will be slightly more affordable as well outside of the Pro 24 PoE switch.
+
+
+
+````````````````````````````````````````````````````````````````````````````
+
+Church Wi-Fi setup Packet Tracer:
+
+Mgmt IP: 192.168.1.20/24
+Login: admin
+Password: Password1
+
+Wi-Fi testing:				//disabled after initial setup
+SSID: test
+password: password
+
+
+Wi-Fi school:
+SSID: school_wifi
+Password: SchoolIsCool(maybe)
+VLAN 20
+QoS: Gold
+DHCP: 192.168.3.0/24 - leased from WLC
+
+Wi-Fi guest:
+SSID: guest_wifi
+Password: None. Layer 3 web policy
+VLAN 30
+QoS: bronze
+DHCP: 192.168.0.0/24 - leased from WLC
