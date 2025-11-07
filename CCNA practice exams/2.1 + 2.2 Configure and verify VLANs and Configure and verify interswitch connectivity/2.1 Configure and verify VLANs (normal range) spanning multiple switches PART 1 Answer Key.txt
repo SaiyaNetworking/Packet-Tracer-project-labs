@@ -50,7 +50,7 @@ Remember, access ports only allow one vlan per port.
 	SW1(config-if)#switchport access vlan 30
 	SW2(config)#int f0/4
 	SW2(config-if)#switchport mode access
-	SW2(config-if)#switchport access vlan 40
+	SW2(config-if)#switchport access vlan 30
 
 	SW1(config)#do show vlan brief			//verify the appropriate port is on the correct vlan
 
@@ -81,6 +81,7 @@ Going back to your studies, the default VLAN is the initial VLAN that is set up 
 As you can see, setting up VLANs in a lab environment can actually be a very straightforward process and helps segment up your network for security purposes.
 
 Don't forget to save your configurations using the "copy start run" command.
+
 
 
 
